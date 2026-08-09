@@ -13,6 +13,8 @@
 		meta?: string;
 		/** Shows a small "seen" checkmark badge over the poster — used by the browse-grid pages. */
 		watched?: boolean;
+		/** Square (1:1) artwork instead of the default 2:3 poster — album covers, not posters. */
+		square?: boolean;
 	}
 
 	let {
@@ -22,14 +24,15 @@
 		hasArtwork = false,
 		posterUrl = null,
 		meta,
-		watched = false
+		watched = false,
+		square = false
 	}: Props = $props();
 
 	const imgSrc = $derived(posterUrl ?? (hasArtwork && id ? `/api/media/${id}/poster` : null));
 </script>
 
 {#snippet content()}
-	<div class="poster">
+	<div class="poster" class:square>
 		{#if imgSrc}
 			<img src={imgSrc} alt="" loading="lazy" />
 		{:else}
@@ -72,6 +75,9 @@
 		border-radius: 0.4rem;
 		overflow: hidden;
 		background: light-dark(#e5e4df, #232322);
+	}
+	.poster.square {
+		aspect-ratio: 1 / 1;
 	}
 	.watched-badge {
 		position: absolute;

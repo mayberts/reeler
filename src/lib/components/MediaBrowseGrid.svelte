@@ -18,9 +18,11 @@
 		search: string;
 		sort: BrowseSort;
 		emptyText: string;
+		/** Square (1:1) artwork instead of the default 2:3 poster — album covers, not posters. */
+		square?: boolean;
 	}
 
-	let { heading, items, total, search, sort, emptyText }: Props = $props();
+	let { heading, items, total, search, sort, emptyText, square = false }: Props = $props();
 </script>
 
 <h1>{heading} <span class="count">{total.toLocaleString()} total</span></h1>
@@ -46,6 +48,7 @@
 				year={item.year}
 				hasArtwork={!!(item.plexThumb || item.artworkUrl)}
 				watched={item.watched}
+				{square}
 			/>
 		{/each}
 	</div>
