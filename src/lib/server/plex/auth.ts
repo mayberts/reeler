@@ -40,15 +40,19 @@ export async function checkPin(pinId: number): Promise<PlexPin> {
 	return response.json();
 }
 
-/** The URL to send the user's browser to in order to approve the pin. */
-export function buildAuthUrl(pin: PlexPin, forwardUrl: string): string {
+/**
+ * The URL to open (in a new tab) for the user to approve the pin. Deliberately no
+ * `forwardUrl` — the original tab polls `checkPin` instead of relying on plex.tv to
+ * redirect the browser back, which turned out to be unreliable in practice (some
+ * browsers upgrade that redirect to https, which this app doesn't serve).
+ */
+export function buildAuthUrl(pin: PlexPin): string {
 	const { clientIdentifier } = getPlexConfig();
 	const url = new URL('https://app.plex.tv/auth');
 	url.hash = `?${new URLSearchParams({
 		clientID: clientIdentifier,
 		code: pin.code,
-		'context[device][product]': 'Reeler',
-		forwardUrl
+		'context[device][product]': 'Reeler'
 	}).toString()}`;
 	return url.toString();
 }

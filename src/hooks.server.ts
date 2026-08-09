@@ -2,7 +2,7 @@ import { redirect, type Handle } from '@sveltejs/kit';
 import { getSessionUser, SESSION_COOKIE_NAME } from '$lib/server/auth/session';
 import { startBackgroundSync } from '$lib/server/sync/scheduler';
 
-const PUBLIC_PATH_PREFIXES = ['/login', '/api/webhooks/'];
+const PUBLIC_PATH_PREFIXES = ['/login', '/api/webhooks/', '/api/auth/'];
 
 // Runs once when this module is first loaded, i.e. once per server process.
 startBackgroundSync();

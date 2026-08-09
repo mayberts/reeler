@@ -1,21 +1,66 @@
 <script lang="ts">
-	let { data } = $props();
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
-	const errorMessages: Record<string, string> = {
-		missing_pin: 'Sign-in expired before it could complete. Try again.',
-		not_approved: "Plex didn't confirm the sign-in. Try again.",
-		plex_unreachable: "Couldn't reach plex.tv. Try again in a moment."
-	};
+	type Status = 'idle' | 'waiting' | 'error';
+
+	let status = $state<Status>('idle');
+	let errorMessage = $state('');
+
+	const POLL_INTERVAL_MS = 2000;
+	const TIMEOUT_MS = 5 * 60 * 1000;
+
+	async function signIn() {
+		status = 'waiting';
+		errorMessage = '';
+
+		const startResponse = await fetch('/api/auth/plex/start', { method: 'POST' });
+		if (!startResponse.ok) {
+			status = 'error';
+			errorMessage = "Couldn't reach plex.tv. Try again in a moment.";
+			return;
+		}
+
+		const { id, authUrl } = await startResponse.json();
+		window.open(authUrl, '_blank', 'noopener');
+		poll(id);
+	}
+
+	function poll(pinId: number) {
+		const startedAt = Date.now();
+
+		const interval = setInterval(async () => {
+			if (Date.now() - startedAt > TIMEOUT_MS) {
+				clearInterval(interval);
+				status = 'error';
+				errorMessage = "Sign-in timed out — didn't see an approval in time. Try again.";
+				return;
+			}
+
+			const response = await fetch(`/api/auth/plex/poll?pin=${pinId}`);
+			const result = await response.json();
+
+			if (result.status === 'complete') {
+				clearInterval(interval);
+				await goto(resolve('/'));
+			} else if (result.status === 'error') {
+				clearInterval(interval);
+				status = 'error';
+				errorMessage = 'Something went wrong talking to plex.tv. Try again.';
+			}
+			// 'pending' — keep polling
+		}, POLL_INTERVAL_MS);
+	}
 </script>
 
 <div class="login">
 	<h1>Reeler</h1>
-	{#if data.error}
-		<p class="error">{errorMessages[data.error] ?? 'Something went wrong. Try again.'}</p>
+	{#if status === 'error'}
+		<p class="error">{errorMessage}</p>
 	{/if}
-	<form method="POST">
-		<button type="submit">Sign in with Plex</button>
-	</form>
+	<button type="button" onclick={signIn} disabled={status === 'waiting'}>
+		{status === 'waiting' ? 'Waiting for approval in the other tab…' : 'Sign in with Plex'}
+	</button>
 </div>
 
 <style>
@@ -38,5 +83,9 @@
 		color: #1a1a1a;
 		font-weight: 600;
 		cursor: pointer;
+	}
+	button:disabled {
+		opacity: 0.7;
+		cursor: default;
 	}
 </style>
