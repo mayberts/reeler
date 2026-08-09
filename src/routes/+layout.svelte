@@ -19,6 +19,7 @@
 				<a href={resolve('/history')}>History</a>
 				<a href={resolve('/ratings')}>Ratings</a>
 				<a href={resolve('/lists')}>Lists</a>
+				<a href={resolve('/stats')}>Stats</a>
 			</nav>
 			<form method="POST" action={resolve('/logout')} class="logout">
 				<span>{data.user.username}</span>

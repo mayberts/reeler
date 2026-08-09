@@ -125,8 +125,13 @@ that a fully independent rating scale would introduce.
    MusicBrainz/Last.fm for manually-logged music is still open, see
    below) and is optional: the app runs fine with no `TMDB_API_KEY` set,
    that section of the UI just says so instead of the search box.
-4. Stats/dashboards. (Unraid Community Apps packaging dropped — not
-   needed, see Deployment above.)
+4. ✅ Stats page: hero tiles (total watches, unique titles, ratings given,
+   average rating), a watch-count breakdown by media type, a 12-month
+   activity bar chart, and top-watched/top-rated lists. (Unraid Community
+   Apps packaging dropped — not needed, see Deployment above.)
+
+All four original roadmap phases are done. Nothing currently queued —
+next work should come from actual usage, not a pre-written plan.
 
 ## Open questions
 
