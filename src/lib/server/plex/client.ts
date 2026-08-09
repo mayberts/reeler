@@ -40,6 +40,16 @@ export function getWatchHistory(options: { accountId?: string; since?: number } 
 }
 
 /**
+ * The Plex Media Server's own local user accounts — distinct from, and numbered
+ * differently to, plex.tv's global account ids. History (`/status/sessions/history/all`)
+ * and webhook payloads both key on this server-local id, so it's what has to be stored
+ * as a user's `plexAccountId`, not the id from the plex.tv OAuth user lookup.
+ */
+export function listServerAccounts() {
+	return plexFetch<PlexAccountsResponse>('/accounts');
+}
+
+/**
  * Sets a rating on a media item in Plex (0-10, half-star granularity), used to write
  * an in-app rating change back so Plex stays in sync.
  */
@@ -79,5 +89,11 @@ export interface PlexMetadataItem {
 export interface PlexMetadataResponse {
 	MediaContainer: {
 		Metadata?: PlexMetadataItem[];
+	};
+}
+
+export interface PlexAccountsResponse {
+	MediaContainer: {
+		Account?: Array<{ id: number; name: string }>;
 	};
 }
