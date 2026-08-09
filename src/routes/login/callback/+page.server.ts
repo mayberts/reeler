@@ -14,7 +14,8 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	let pin: PlexPin;
 	try {
 		pin = await checkPin(Number(pinId));
-	} catch {
+	} catch (err) {
+		console.error('[login] failed to check Plex pin', err);
 		redirect(303, '/login?error=plex_unreachable');
 	}
 

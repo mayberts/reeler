@@ -14,7 +14,8 @@ export const actions: Actions = {
 		let pin;
 		try {
 			pin = await createPin();
-		} catch {
+		} catch (err) {
+			console.error('[login] failed to create Plex pin', err);
 			redirect(303, '/login?error=plex_unreachable');
 		}
 
