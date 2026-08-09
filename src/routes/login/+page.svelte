@@ -10,9 +10,19 @@
 	const POLL_INTERVAL_MS = 2000;
 	const TIMEOUT_MS = 5 * 60 * 1000;
 
+	const AUTH_WINDOW_NAME = 'reeler-plex-auth';
+
+	let activePinId: number | null = null;
+	let pollStartedAt = 0;
+	let pollHandle: ReturnType<typeof setInterval> | undefined;
+
 	async function signIn() {
 		status = 'waiting';
 		errorMessage = '';
+
+		// Opened synchronously, before any await, so browsers don't treat it as a blocked
+		// popup — only navigating it to the real URL happens after the fetch below.
+		window.open('', AUTH_WINDOW_NAME);
 
 		const startResponse = await fetch('/api/auth/plex/start', { method: 'POST' });
 		if (!startResponse.ok) {
@@ -22,47 +32,67 @@
 		}
 
 		const { id, authUrl } = await startResponse.json();
-		window.open(authUrl, '_blank', 'noopener');
-		poll(id);
+		// Navigating a window by name (rather than holding a JS reference) still works
+		// after the async gap above, and isn't treated as a new popup to block.
+		window.open(authUrl, AUTH_WINDOW_NAME, 'noopener');
+
+		activePinId = id;
+		pollStartedAt = Date.now();
+		checkOnce();
+		pollHandle = setInterval(checkOnce, POLL_INTERVAL_MS);
 	}
 
-	function poll(pinId: number) {
-		const startedAt = Date.now();
+	function stopPolling() {
+		if (pollHandle) clearInterval(pollHandle);
+		pollHandle = undefined;
+		activePinId = null;
+	}
 
-		const interval = setInterval(async () => {
-			if (Date.now() - startedAt > TIMEOUT_MS) {
-				clearInterval(interval);
-				status = 'error';
-				errorMessage = "Sign-in timed out — didn't see an approval in time. Try again.";
-				return;
-			}
+	async function checkOnce() {
+		if (activePinId === null) return;
 
-			const response = await fetch(`/api/auth/plex/poll?pin=${pinId}`);
+		if (Date.now() - pollStartedAt > TIMEOUT_MS) {
+			stopPolling();
+			status = 'error';
+			errorMessage = "Sign-in timed out — didn't see an approval in time. Try again.";
+			return;
+		}
 
-			// Any non-OK response (a crash, a proxy error page, ...) is treated the same as
-			// an explicit { status: 'error' } — never silently keep polling against
-			// something broken.
-			if (!response.ok) {
-				clearInterval(interval);
-				status = 'error';
-				errorMessage = 'Something went wrong talking to plex.tv. Try again.';
-				return;
-			}
+		const response = await fetch(`/api/auth/plex/poll?pin=${activePinId}`);
 
-			const result = await response.json();
+		// Any non-OK response (a crash, a proxy error page, ...) is treated the same as
+		// an explicit { status: 'error' } — never silently keep polling against
+		// something broken.
+		if (!response.ok) {
+			stopPolling();
+			status = 'error';
+			errorMessage = 'Something went wrong talking to plex.tv. Try again.';
+			return;
+		}
 
-			if (result.status === 'complete') {
-				clearInterval(interval);
-				await goto(resolve('/'));
-			} else if (result.status === 'error') {
-				clearInterval(interval);
-				status = 'error';
-				errorMessage = 'Something went wrong talking to plex.tv. Try again.';
-			}
-			// 'pending' — keep polling
-		}, POLL_INTERVAL_MS);
+		const result = await response.json();
+
+		if (result.status === 'complete') {
+			stopPolling();
+			await goto(resolve('/'));
+		} else if (result.status === 'error') {
+			stopPolling();
+			status = 'error';
+			errorMessage = 'Something went wrong talking to plex.tv. Try again.';
+		}
+		// 'pending' — keep polling
+	}
+
+	// Backgrounded tabs can have their timers throttled or fully frozen (Edge's
+	// "sleeping tabs" among others) — recheck immediately whenever this tab regains
+	// focus, instead of relying solely on the interval to eventually catch up.
+	function handleVisibilityChange() {
+		if (document.visibilityState === 'visible' && activePinId !== null) checkOnce();
 	}
 </script>
+
+<svelte:window onfocus={handleVisibilityChange} />
+<svelte:document onvisibilitychange={handleVisibilityChange} />
 
 <div class="login">
 	<h1>Reeler</h1>
