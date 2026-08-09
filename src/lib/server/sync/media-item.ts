@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { mediaItems, type MediaType } from '$lib/server/db/schema';
-import type { PlexMetadataItem } from '$lib/server/plex/client';
+import { getMetadata, type PlexMetadataItem } from '$lib/server/plex/client';
 
 const PLEX_TYPE_TO_MEDIA_TYPE: Partial<Record<string, MediaType>> = {
 	movie: 'movie',
@@ -22,6 +22,33 @@ function extractExternalIds(item: PlexMetadataItem) {
 }
 
 /**
+ * Plex's history entries and webhook payloads for music are much sparser than for
+ * movies/shows/episodes: a real track entry looks like `{ title, ratingKey, type,
+ * parentTitle, grandparentTitle, viewedAt, ... }` — `parentTitle` (the album name) is
+ * there as plain text, but `parentRatingKey` (the album's own ratingKey) never is.
+ * Without it there's no way to link a track to its album, so a sparse track/album item
+ * (no `thumb`, used as the signal it wasn't a full lookup) gets enriched from the
+ * canonical `/library/metadata/{ratingKey}` before proceeding.
+ */
+async function enrichSparseMusicItem(item: PlexMetadataItem): Promise<PlexMetadataItem> {
+	if (item.type !== 'track' && item.type !== 'album') return item;
+	if (item.thumb || !item.ratingKey) return item;
+
+	try {
+		const { MediaContainer } = await getMetadata(item.ratingKey);
+		const full = MediaContainer.Metadata?.[0];
+		return full ? { ...item, ...full } : item;
+	} catch (err) {
+		console.error(
+			'[sync] failed to fetch full metadata for sparse music item',
+			{ ratingKey: item.ratingKey },
+			err
+		);
+		return item;
+	}
+}
+
+/**
  * Upserts a media item from a raw Plex metadata blob — library listings, history
  * entries, and webhook payloads all share this shape. Matches on `ratingKey` first,
  * falling back to external ids, so an item created from a history entry is found again
@@ -34,12 +61,14 @@ function extractExternalIds(item: PlexMetadataItem) {
  * row (nothing to "track" about an artist itself); a track's `parentTitle` already
  * carries the artist context via its album.
  */
-export async function upsertMediaItemFromPlex(item: PlexMetadataItem): Promise<string | null> {
-	const type = PLEX_TYPE_TO_MEDIA_TYPE[item.type];
+export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promise<string | null> {
+	const type = PLEX_TYPE_TO_MEDIA_TYPE[rawItem.type];
 	// Plex's history endpoint can return stub/orphaned entries (e.g. for a show that's
 	// since been removed from the library) missing fields a normal item always has —
 	// skip rather than let a NOT NULL constraint blow up the whole sync batch.
-	if (!type || !item.title || !item.ratingKey) return null;
+	if (!type || !rawItem.title || !rawItem.ratingKey) return null;
+
+	const item = await enrichSparseMusicItem(rawItem);
 
 	const { tmdbId, tvdbId } = extractExternalIds(item);
 
@@ -69,9 +98,9 @@ export async function upsertMediaItemFromPlex(item: PlexMetadataItem): Promise<s
 		tvdbId: tvdbId ?? null,
 		plexRatingKey: item.ratingKey,
 		parentId,
-		// Not every payload carries these fields (e.g. the synthetic album item built above
-		// for a track has none of them) — fall back to whatever's already stored rather than
-		// clobbering known data with null.
+		// Not every payload carries these fields even after enrichment (e.g. a movie/show
+		// history entry that predates this schema) — fall back to whatever's already
+		// stored rather than clobbering known data with null.
 		plexThumb: item.thumb ?? existing?.plexThumb ?? null,
 		plexArt: item.art ?? existing?.plexArt ?? null,
 		tagline: item.tagline ?? existing?.tagline ?? null,
@@ -92,4 +121,39 @@ export async function upsertMediaItemFromPlex(item: PlexMetadataItem): Promise<s
 
 	const [created] = await db.insert(mediaItems).values(values).returning();
 	return created.id;
+}
+
+/**
+ * One-time (but idempotent, safe to run repeatedly) repair for tracks that were
+ * created before `enrichSparseMusicItem` existed — they have a real `plexRatingKey`
+ * but no `parentId`, since the sparse payload they were created from never carried
+ * `parentRatingKey`. Re-running each through `upsertMediaItemFromPlex` with just its
+ * ratingKey triggers the same enrichment fetch a fresh sync would, filling in the
+ * album link (and thumb/duration/genre) from Plex's canonical metadata.
+ */
+export async function repairOrphanedTrackParents(): Promise<{ scanned: number; fixed: number }> {
+	const orphans = await db.query.mediaItems.findMany({
+		where: (fields, { eq, and, isNull }) => and(eq(fields.type, 'track'), isNull(fields.parentId))
+	});
+
+	let fixed = 0;
+	for (const track of orphans) {
+		if (!track.plexRatingKey) continue;
+		try {
+			const mediaItemId = await upsertMediaItemFromPlex({
+				ratingKey: track.plexRatingKey,
+				title: track.title,
+				type: 'track'
+			});
+			if (!mediaItemId) continue;
+			const updated = await db.query.mediaItems.findFirst({
+				where: eq(mediaItems.id, mediaItemId)
+			});
+			if (updated?.parentId) fixed++;
+		} catch (err) {
+			console.error('[sync] failed to repair orphaned track', { id: track.id }, err);
+		}
+	}
+
+	return { scanned: orphans.length, fixed };
 }

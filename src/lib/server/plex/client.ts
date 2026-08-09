@@ -28,6 +28,16 @@ export function listSectionItems(sectionKey: string) {
 }
 
 /**
+ * Full metadata for a single item by ratingKey. History entries and webhook payloads
+ * for music are much sparser than this (see `enrichSparseMusicItem` in the sync
+ * layer) — no parentRatingKey, thumb, duration, or genre — so this is used to fill
+ * those in from the canonical source.
+ */
+export function getMetadata(ratingKey: string) {
+	return plexFetch<PlexMetadataResponse>(`/library/metadata/${ratingKey}`);
+}
+
+/**
  * Watch history, optionally filtered to a single Plex Home user (`accountId`) and/or
  * since a given unix timestamp. Used both for initial backfill and as the polling
  * backstop that reconciles anything a missed webhook would otherwise lose.

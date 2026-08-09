@@ -150,6 +150,30 @@ what's on screen. No pagination yet; the existing card-grid pages
 (dashboard, history, etc.) don't paginate either, and the real library's
 per-type counts are small enough that it isn't a problem yet.
 
+### Music: sparse payload bug (fixed)
+
+Real-world Plex history/webhook entries for tracks turned out to look
+like `{ title, ratingKey, type, parentTitle, grandparentTitle, viewedAt,
+... }` — the album's *name* (`parentTitle`) is always there as plain
+text, but the album's `ratingKey` (`parentRatingKey`) never is. The
+original album/track linking logic required both, so it silently never
+fired: tracks got created (from webhook scrobbles, which do carry a real
+`ratingKey`) but no album row ever did, and `parent_id` stayed null on
+every track — confirmed against production, which had 3,061 orphaned
+track rows and zero albums.
+
+Fixed by adding `getMetadata(ratingKey)` (`/library/metadata/{ratingKey}`)
+and calling it whenever a track/album payload looks sparse (no `thumb`,
+used as the signal) but has a `ratingKey` — the canonical metadata
+response carries `parentRatingKey`, `thumb`, `duration`, and `genres`
+that the history/webhook payload leaves out. This also fixes missing
+poster art and runtime for music, which had the same root cause.
+Pre-existing orphaned tracks needed a separate repair, since replaying
+Plex's history endpoint for them hits the same sparse payload (it
+doesn't even carry `ratingKey` for tracks) — `repairOrphanedTrackParents()`
+instead re-resolves each orphaned track directly by its already-stored
+`plexRatingKey`, and runs automatically as part of "Sync now".
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

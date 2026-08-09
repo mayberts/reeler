@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { users, mediaItems, watchHistory } from '$lib/server/db/schema';
 import { syncLibrary } from '$lib/server/sync/library';
 import { backfillWatchHistory } from '$lib/server/sync/history';
+import { repairOrphanedTrackParents } from '$lib/server/sync/media-item';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -40,8 +41,9 @@ export const actions: Actions = {
 			const history = user.plexAccountId
 				? await backfillWatchHistory(user.id, user.plexAccountId)
 				: { entriesSeen: 0, entriesInserted: 0 };
+			const repair = await repairOrphanedTrackParents();
 
-			return { success: true, library, history };
+			return { success: true, library, history, repair };
 		} catch (err) {
 			return fail(502, { message: err instanceof Error ? err.message : 'Sync failed' });
 		}
