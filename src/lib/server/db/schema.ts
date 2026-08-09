@@ -74,7 +74,14 @@ export const mediaItems = sqliteTable(
 		/** Secondary mapping to the source Plex server; absent for manually-logged items. */
 		plexRatingKey: text('plex_rating_key'),
 		parentId: text('parent_id').references((): AnySQLiteColumn => mediaItems.id),
+		/** Public poster URL (currently only TMDb, for manually-logged items) — safe to link to directly. */
 		artworkUrl: text('artwork_url'),
+		/**
+		 * Plex's relative thumb path (e.g. `/library/metadata/123/thumb/169...`). Fetching it
+		 * requires the admin token, so it's served through our own image proxy rather than
+		 * ever being placed in a client-facing `<img src>` directly.
+		 */
+		plexThumb: text('plex_thumb'),
 		createdAt: createdAt()
 	},
 	(table) => [

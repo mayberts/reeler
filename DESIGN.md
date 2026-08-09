@@ -105,6 +105,16 @@ that a fully independent rating scale would introduce.
   this deployment, a CA template would just be a second thing to keep in
   sync with no one asking for it.
 
+### Poster art
+
+Plex posters require the admin token to fetch, so they're never linked to
+directly from the client (`<img src>` pointed at Plex would leak the token
+to anyone who views page source, browser history, or a screenshot).
+Instead `media_items.plexThumb` stores Plex's relative thumb path, and
+`/api/media/[id]/poster` fetches it server-side and streams the bytes
+back — the token stays server-side. TMDb posters (`artworkUrl`) are
+already public, so those just redirect to TMDb's own CDN.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

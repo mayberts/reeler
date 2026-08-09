@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import MediaCard from '$lib/components/MediaCard.svelte';
 
 	let { data, form } = $props();
 	let syncing = $state(false);
@@ -36,7 +37,9 @@
 		};
 	}}
 >
-	<button type="submit" disabled={syncing}>{syncing ? 'Syncing…' : 'Sync now'}</button>
+	<button type="submit" class="primary" disabled={syncing}
+		>{syncing ? 'Syncing…' : 'Sync now'}</button
+	>
 </form>
 
 {#if form?.success}
@@ -49,16 +52,21 @@
 
 <h2>Recent activity</h2>
 {#if data.recentHistory.length === 0}
-	<p>Nothing watched yet — run a sync above once your Plex account has some history.</p>
+	<p class="empty">
+		Nothing watched yet — run a sync above once your Plex account has some history.
+	</p>
 {:else}
-	<ul class="history">
+	<div class="card-grid">
 		{#each data.recentHistory as entry (entry.id)}
-			<li>
-				<span class="title">{entry.mediaItem.title}</span>
-				<span class="date">{entry.watchedAt.toLocaleString()}</span>
-			</li>
+			<MediaCard
+				id={entry.mediaItem.id}
+				title={entry.mediaItem.title}
+				year={entry.mediaItem.year}
+				hasArtwork={!!(entry.mediaItem.plexThumb || entry.mediaItem.artworkUrl)}
+				meta={entry.watchedAt.toLocaleDateString()}
+			/>
 		{/each}
-	</ul>
+	</div>
 {/if}
 
 <style>
@@ -77,27 +85,9 @@
 		font-weight: 600;
 	}
 	.sync-result {
-		color: light-dark(#15803d, #4ade80);
+		color: var(--success);
 	}
 	.sync-error {
-		color: light-dark(#b91c1c, #f87171);
-	}
-	.history {
-		list-style: none;
-		padding: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-	.history li {
-		display: flex;
-		justify-content: space-between;
-		gap: 1rem;
-		padding: 0.4rem 0;
-		border-bottom: 1px solid light-dark(#eee, #2a2a2a);
-	}
-	.history .date {
-		opacity: 0.6;
-		font-size: 0.85rem;
+		color: var(--danger);
 	}
 </style>

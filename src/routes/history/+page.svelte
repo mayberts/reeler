@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import MediaCard from '$lib/components/MediaCard.svelte';
 
 	let { data, form } = $props();
 </script>
@@ -7,21 +8,21 @@
 <h1>Watch history</h1>
 
 {#if data.history.length === 0}
-	<p>Nothing watched yet — run a sync from the dashboard, or watch something in Plex.</p>
+	<p class="empty">
+		Nothing watched yet — run a sync from the dashboard, or watch something in Plex.
+	</p>
 {:else}
-	<ul class="history">
+	<div class="card-grid">
 		{#each data.history as entry (entry.id)}
-			<li>
-				<span class="title"
-					>{entry.mediaItem.title}{entry.mediaItem.year ? ` (${entry.mediaItem.year})` : ''}</span
-				>
-				<span class="meta">
-					<span class="source">{entry.source}</span>
-					<span class="date">{entry.watchedAt.toLocaleString()}</span>
-				</span>
-			</li>
+			<MediaCard
+				id={entry.mediaItem.id}
+				title={entry.mediaItem.title}
+				year={entry.mediaItem.year}
+				hasArtwork={!!(entry.mediaItem.plexThumb || entry.mediaItem.artworkUrl)}
+				meta="{entry.source} · {entry.watchedAt.toLocaleDateString()}"
+			/>
 		{/each}
-	</ul>
+	</div>
 {/if}
 
 <h2>Log something not in Plex</h2>
@@ -45,95 +46,57 @@
 
 	{#if data.logQuery}
 		{#if data.logResults.length === 0}
-			<p>No matches.</p>
+			<p class="empty">No matches.</p>
 		{:else}
-			<ul class="items">
+			<div class="card-grid">
 				{#each data.logResults as result (result.tmdbId)}
-					<li>
-						<span class="title">{result.title}{result.year ? ` (${result.year})` : ''}</span>
+					<div class="result">
+						<MediaCard title={result.title} year={result.year} posterUrl={result.posterUrl} />
 						<form method="POST" action="?/logManual" use:enhance>
 							<input type="hidden" name="tmdbId" value={result.tmdbId} />
 							<input type="hidden" name="title" value={result.title} />
 							<input type="hidden" name="year" value={result.year ?? ''} />
 							<input type="hidden" name="mediaType" value={result.mediaType} />
+							<input type="hidden" name="posterUrl" value={result.posterUrl ?? ''} />
 							<input type="date" name="watchedAt" />
-							<button type="submit">Log as watched</button>
+							<button type="submit">Log</button>
 						</form>
-					</li>
+					</div>
 				{/each}
-			</ul>
+			</div>
 		{/if}
 	{/if}
 {/if}
 
 <style>
-	.history {
-		list-style: none;
-		padding: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-	.history li {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 1rem;
-		padding: 0.5rem 0;
-		border-bottom: 1px solid light-dark(#eee, #2a2a2a);
-	}
-	.meta {
-		display: flex;
-		gap: 0.75rem;
-		align-items: center;
-		font-size: 0.85rem;
-		opacity: 0.7;
-	}
-	.source {
-		text-transform: uppercase;
-		font-size: 0.7rem;
-		letter-spacing: 0.03em;
-		border: 1px solid currentColor;
-		border-radius: 0.25rem;
-		padding: 0.05rem 0.35rem;
-	}
 	.hint {
 		opacity: 0.7;
 		font-size: 0.9rem;
 	}
 	.search {
-		display: flex;
-		gap: 0.5rem;
 		margin: 1rem 0;
 	}
 	.search input {
 		flex: 1;
 		max-width: 24rem;
 	}
-	.items {
-		list-style: none;
-		padding: 0;
+	.result {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
 	}
-	.items li {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 1rem;
-		padding: 0.4rem 0;
-		border-bottom: 1px solid light-dark(#eee, #2a2a2a);
+	.result form {
+		flex-wrap: wrap;
+		gap: 0.35rem;
 	}
-	.items form {
-		display: flex;
-		gap: 0.4rem;
-		align-items: center;
+	.result input[type='date'] {
+		flex: 1;
+		min-width: 0;
 	}
 	.success {
-		color: light-dark(#15803d, #4ade80);
+		color: var(--success);
 	}
 	.error {
-		color: light-dark(#b91c1c, #f87171);
+		color: var(--danger);
 	}
 </style>

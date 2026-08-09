@@ -112,7 +112,7 @@
 	{#if status === 'error'}
 		<p class="error">{errorMessage}</p>
 	{/if}
-	<button type="button" onclick={signIn} disabled={status === 'waiting'}>
+	<button type="button" class="primary" onclick={signIn} disabled={status === 'waiting'}>
 		{status === 'waiting' ? 'Waiting for approval in the other tab…' : 'Sign in with Plex'}
 	</button>
 </div>
@@ -126,20 +126,10 @@
 		margin-top: 4rem;
 	}
 	.error {
-		color: light-dark(#b91c1c, #f87171);
+		color: var(--danger);
 	}
-	button {
+	.login button {
 		font-size: 1rem;
 		padding: 0.6rem 1.2rem;
-		border-radius: 0.4rem;
-		border: none;
-		background: #e5a00d;
-		color: #1a1a1a;
-		font-weight: 600;
-		cursor: pointer;
-	}
-	button:disabled {
-		opacity: 0.7;
-		cursor: default;
 	}
 </style>

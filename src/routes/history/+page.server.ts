@@ -34,6 +34,7 @@ export const actions: Actions = {
 		const yearRaw = form.get('year');
 		const mediaType = form.get('mediaType');
 		const watchedAtRaw = form.get('watchedAt');
+		const posterUrlRaw = form.get('posterUrl');
 
 		if (
 			typeof tmdbId !== 'string' ||
@@ -46,6 +47,7 @@ export const actions: Actions = {
 		const year = typeof yearRaw === 'string' && yearRaw ? Number(yearRaw) : null;
 		const watchedAt =
 			typeof watchedAtRaw === 'string' && watchedAtRaw ? new Date(watchedAtRaw) : new Date();
+		const artworkUrl = typeof posterUrlRaw === 'string' && posterUrlRaw ? posterUrlRaw : null;
 
 		let mediaItem = await db.query.mediaItems.findFirst({
 			where: eq(mediaItems.tmdbId, tmdbId)
@@ -54,7 +56,7 @@ export const actions: Actions = {
 		if (!mediaItem) {
 			const [created] = await db
 				.insert(mediaItems)
-				.values({ type: mediaType as MediaType, title, year, tmdbId })
+				.values({ type: mediaType as MediaType, title, year, tmdbId, artworkUrl })
 				.returning();
 			mediaItem = created;
 		}

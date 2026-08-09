@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import MediaCard from '$lib/components/MediaCard.svelte';
 
 	let { data, form } = $props();
 </script>
@@ -20,20 +21,25 @@
 	<section>
 		<h2>Results for "{data.query}"</h2>
 		{#if data.searchResults.length === 0}
-			<p>No matches.</p>
+			<p class="empty">No matches.</p>
 		{:else}
-			<ul class="items">
+			<div class="card-grid">
 				{#each data.searchResults as item (item.id)}
-					<li>
-						<span class="title">{item.title}{item.year ? ` (${item.year})` : ''}</span>
+					<div class="result">
+						<MediaCard
+							id={item.id}
+							title={item.title}
+							year={item.year}
+							hasArtwork={!!(item.plexThumb || item.artworkUrl)}
+						/>
 						<form method="POST" action="?/rate" use:enhance>
 							<input type="hidden" name="mediaItemId" value={item.id} />
 							<input type="number" name="value" min="0" max="10" step="1" placeholder="0-10" />
 							<button type="submit">Rate</button>
 						</form>
-					</li>
+					</div>
 				{/each}
-			</ul>
+			</div>
 		{/if}
 	</section>
 {/if}
@@ -41,61 +47,48 @@
 <section>
 	<h2>Your ratings</h2>
 	{#if data.ratings.length === 0}
-		<p>Nothing rated yet — search above to rate something.</p>
+		<p class="empty">Nothing rated yet — search above to rate something.</p>
 	{:else}
-		<ul class="items">
+		<div class="card-grid">
 			{#each data.ratings as rating (rating.id)}
-				<li>
-					<span class="title"
-						>{rating.mediaItem.title}{rating.mediaItem.year
-							? ` (${rating.mediaItem.year})`
-							: ''}</span
-					>
+				<div class="result">
+					<MediaCard
+						id={rating.mediaItemId}
+						title={rating.mediaItem.title}
+						year={rating.mediaItem.year}
+						hasArtwork={!!(rating.mediaItem.plexThumb || rating.mediaItem.artworkUrl)}
+					/>
 					<form method="POST" action="?/rate" use:enhance>
 						<input type="hidden" name="mediaItemId" value={rating.mediaItemId} />
 						<input type="number" name="value" min="0" max="10" step="1" value={rating.value} />
 						<button type="submit">Update</button>
 					</form>
-				</li>
+				</div>
 			{/each}
-		</ul>
+		</div>
 	{/if}
 </section>
 
 <style>
 	.search {
-		display: flex;
-		gap: 0.5rem;
 		margin: 1.5rem 0;
 	}
 	.search input {
 		flex: 1;
 		max-width: 24rem;
 	}
-	.items {
-		list-style: none;
-		padding: 0;
+	.result {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
 	}
-	.items li {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 1rem;
-		padding: 0.5rem 0;
-		border-bottom: 1px solid light-dark(#eee, #2a2a2a);
+	.result form {
+		gap: 0.35rem;
 	}
-	.items form {
-		display: flex;
-		gap: 0.4rem;
-		align-items: center;
-	}
-	.items input[type='number'] {
-		width: 4rem;
+	.result input[type='number'] {
+		width: 3.5rem;
 	}
 	.error {
-		color: light-dark(#b91c1c, #f87171);
+		color: var(--danger);
 	}
 </style>

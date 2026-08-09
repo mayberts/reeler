@@ -1,0 +1,82 @@
+<script lang="ts">
+	interface Props {
+		/** Required to show artwork via the poster proxy (`hasArtwork`); optional if `posterUrl` is given instead. */
+		id?: string;
+		title: string;
+		year?: number | null;
+		/** Set when the underlying media_items row has plexThumb/artworkUrl — fetches via the poster proxy. */
+		hasArtwork?: boolean;
+		/** Overrides `hasArtwork`/`id`: a public URL to use directly (e.g. a not-yet-logged TMDb search result). */
+		posterUrl?: string | null;
+		meta?: string;
+	}
+
+	let { id, title, year, hasArtwork = false, posterUrl = null, meta }: Props = $props();
+
+	const imgSrc = $derived(posterUrl ?? (hasArtwork && id ? `/api/media/${id}/poster` : null));
+</script>
+
+<div class="card">
+	<div class="poster">
+		{#if imgSrc}
+			<img src={imgSrc} alt="" loading="lazy" />
+		{:else}
+			<div class="placeholder" aria-hidden="true">{title.charAt(0).toUpperCase()}</div>
+		{/if}
+	</div>
+	<div class="info">
+		<span class="title">{title}</span>
+		{#if year || meta}
+			<span class="sub">{year ?? ''}{year && meta ? ' · ' : ''}{meta ?? ''}</span>
+		{/if}
+	</div>
+</div>
+
+<style>
+	.card {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		width: 100%;
+	}
+	.poster {
+		aspect-ratio: 2 / 3;
+		border-radius: 0.4rem;
+		overflow: hidden;
+		background: light-dark(#e5e4df, #232322);
+	}
+	.poster img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+	}
+	.placeholder {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 2rem;
+		font-weight: 600;
+		opacity: 0.35;
+	}
+	.info {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+	}
+	.title {
+		font-size: 0.9rem;
+		font-weight: 600;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+	.sub {
+		font-size: 0.75rem;
+		opacity: 0.6;
+	}
+</style>

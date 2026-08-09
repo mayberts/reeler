@@ -1,12 +1,16 @@
 import { getTmdbApiKey } from './config';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
+// TMDb's image CDN is public — no API key/auth needed to fetch from it, so unlike Plex
+// posters, these can be linked to directly from the client.
+const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w342';
 
 export interface TmdbSearchResult {
 	tmdbId: string;
 	title: string;
 	year: number | null;
 	mediaType: 'movie' | 'show';
+	posterUrl: string | null;
 }
 
 interface TmdbMultiSearchItem {
@@ -16,6 +20,7 @@ interface TmdbMultiSearchItem {
 	name?: string;
 	release_date?: string;
 	first_air_date?: string;
+	poster_path?: string | null;
 }
 
 interface TmdbMultiSearchResponse {
@@ -54,6 +59,7 @@ export async function searchTmdb(query: string): Promise<TmdbSearchResult[]> {
 			tmdbId: String(item.id),
 			title: item.title ?? item.name ?? 'Untitled',
 			year: parseYear(item.release_date ?? item.first_air_date),
-			mediaType: (item.media_type === 'movie' ? 'movie' : 'show') as 'movie' | 'show'
+			mediaType: (item.media_type === 'movie' ? 'movie' : 'show') as 'movie' | 'show',
+			posterUrl: item.poster_path ? `${TMDB_IMAGE_BASE}${item.poster_path}` : null
 		}));
 }

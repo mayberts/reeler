@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import MediaCard from '$lib/components/MediaCard.svelte';
 
 	let { data, form } = $props();
 </script>
@@ -21,23 +22,26 @@
 {/if}
 
 {#if data.list.items.length === 0}
-	<p>Nothing in this list yet.</p>
+	<p class="empty">Nothing in this list yet.</p>
 {:else}
-	<ul class="items">
+	<div class="card-grid">
 		{#each data.list.items as item (item.id)}
-			<li>
-				<span class="title"
-					>{item.mediaItem.title}{item.mediaItem.year ? ` (${item.mediaItem.year})` : ''}</span
-				>
+			<div class="result">
+				<MediaCard
+					id={item.mediaItem.id}
+					title={item.mediaItem.title}
+					year={item.mediaItem.year}
+					hasArtwork={!!(item.mediaItem.plexThumb || item.mediaItem.artworkUrl)}
+				/>
 				{#if data.isOwner}
 					<form method="POST" action="?/removeItem" use:enhance>
 						<input type="hidden" name="listItemId" value={item.id} />
 						<button type="submit">Remove</button>
 					</form>
 				{/if}
-			</li>
+			</div>
 		{/each}
-	</ul>
+	</div>
 {/if}
 
 {#if data.isOwner}
@@ -49,19 +53,24 @@
 
 	{#if data.query}
 		{#if data.searchResults.length === 0}
-			<p>No matches.</p>
+			<p class="empty">No matches.</p>
 		{:else}
-			<ul class="items">
+			<div class="card-grid">
 				{#each data.searchResults as item (item.id)}
-					<li>
-						<span class="title">{item.title}{item.year ? ` (${item.year})` : ''}</span>
+					<div class="result">
+						<MediaCard
+							id={item.id}
+							title={item.title}
+							year={item.year}
+							hasArtwork={!!(item.plexThumb || item.artworkUrl)}
+						/>
 						<form method="POST" action="?/addItem" use:enhance>
 							<input type="hidden" name="mediaItemId" value={item.id} />
 							<button type="submit">Add</button>
 						</form>
-					</li>
+					</div>
 				{/each}
-			</ul>
+			</div>
 		{/if}
 	{/if}
 
@@ -90,24 +99,12 @@
 		border-radius: 0.25rem;
 		padding: 0.05rem 0.35rem;
 	}
-	.items {
-		list-style: none;
-		padding: 0;
+	.result {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
 	}
-	.items li {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 1rem;
-		padding: 0.4rem 0;
-		border-bottom: 1px solid light-dark(#eee, #2a2a2a);
-	}
 	.search {
-		display: flex;
-		gap: 0.5rem;
 		margin: 1rem 0;
 	}
 	.search input {
@@ -118,9 +115,9 @@
 		margin-top: 2rem;
 	}
 	.delete button {
-		color: light-dark(#b91c1c, #f87171);
+		color: var(--danger);
 	}
 	.error {
-		color: light-dark(#b91c1c, #f87171);
+		color: var(--danger);
 	}
 </style>

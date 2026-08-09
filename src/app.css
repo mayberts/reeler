@@ -3,15 +3,66 @@
 	font-family:
 		system-ui,
 		-apple-system,
+		'Segoe UI',
 		sans-serif;
+
+	--surface: light-dark(#f9f9f7, #0d0d0d);
+	--surface-raised: light-dark(#fcfcfb, #1a1a19);
+	--ink-primary: light-dark(#0b0b0b, #ffffff);
+	--ink-secondary: light-dark(#52514e, #c3c2b7);
+	--ink-muted: #898781;
+	--border: light-dark(#e1e0d9, #2c2c2a);
+	--border-strong: light-dark(#c3c2b7, #383835);
+	--accent: #e5a00d;
+	--accent-ink: #1a1a1a;
+	--danger: light-dark(#b91c1c, #f87171);
+	--success: light-dark(#15803d, #4ade80);
+	--radius: 0.5rem;
+	--radius-sm: 0.35rem;
+
+	background: var(--surface);
+	color: var(--ink-primary);
+}
+
+* {
+	box-sizing: border-box;
 }
 
 body {
 	margin: 0;
+	background: var(--surface);
+	color: var(--ink-primary);
+}
+
+h1,
+h2,
+h3 {
+	font-weight: 600;
+	line-height: 1.2;
+	margin: 0 0 0.75rem;
+}
+
+h1 {
+	font-size: 1.6rem;
+}
+
+h2 {
+	font-size: 1.15rem;
+	margin-top: 2.25rem;
+	color: var(--ink-secondary);
+}
+
+p {
+	color: var(--ink-secondary);
+	line-height: 1.5;
+}
+
+a {
+	color: inherit;
 }
 
 .app {
-	max-width: 960px;
+	max-width: 72rem;
 	margin: 0 auto;
 	padding: 0 1.5rem;
 }
@@ -20,32 +71,114 @@ header {
 	display: flex;
 	align-items: center;
 	gap: 2rem;
-	padding: 1.25rem 0;
-	border-bottom: 1px solid light-dark(#ddd, #333);
+	padding: 1.1rem 0;
+	border-bottom: 1px solid var(--border);
 }
 
 .brand {
 	font-weight: 700;
 	font-size: 1.1rem;
 	text-decoration: none;
-	color: inherit;
+	color: var(--ink-primary);
 }
 
 nav {
 	display: flex;
-	gap: 1.25rem;
+	gap: 1.5rem;
 }
 
 nav a {
-	color: inherit;
 	text-decoration: none;
-	opacity: 0.75;
+	color: var(--ink-secondary);
+	font-size: 0.9rem;
+	font-weight: 500;
+	padding: 0.25rem 0;
+	border-bottom: 2px solid transparent;
+	transition:
+		color 0.12s ease,
+		border-color 0.12s ease;
 }
 
 nav a:hover {
-	opacity: 1;
+	color: var(--ink-primary);
+}
+
+nav a[aria-current='page'] {
+	color: var(--ink-primary);
+	border-color: var(--accent);
 }
 
 main {
-	padding: 2rem 0;
+	padding: 2rem 0 4rem;
+}
+
+/* Form controls — every page inherits these instead of restyling from scratch. */
+button {
+	font: inherit;
+	font-weight: 600;
+	padding: 0.5rem 1rem;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--border-strong);
+	background: var(--surface-raised);
+	color: var(--ink-primary);
+	cursor: pointer;
+	transition:
+		background 0.12s ease,
+		border-color 0.12s ease;
+}
+
+button:hover:not(:disabled) {
+	border-color: var(--ink-secondary);
+}
+
+button:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+button.primary {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--accent-ink);
+}
+
+button.primary:hover:not(:disabled) {
+	filter: brightness(1.05);
+}
+
+input,
+select,
+textarea {
+	font: inherit;
+	padding: 0.45rem 0.65rem;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--border-strong);
+	background: var(--surface-raised);
+	color: var(--ink-primary);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 2px solid var(--accent);
+	outline-offset: -1px;
+}
+
+form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.6rem;
+	align-items: center;
+}
+
+/* Shared by dashboard/history/ratings/lists wherever media items render as cards. */
+.card-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+	gap: 1.5rem 1.25rem;
+	margin: 1rem 0;
+}
+
+.empty {
+	color: var(--ink-muted);
 }

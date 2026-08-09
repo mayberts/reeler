@@ -12,7 +12,7 @@
 {/if}
 
 {#if data.lists.length === 0}
-	<p>No lists yet — create one below.</p>
+	<p class="empty">No lists yet — create one below.</p>
 {:else}
 	<ul class="lists">
 		{#each data.lists as list (list.id)}
@@ -30,7 +30,7 @@
 	<input type="text" name="name" placeholder="List name" required />
 	<input type="text" name="description" placeholder="Description (optional)" />
 	<label><input type="checkbox" name="isShared" /> Shared with everyone</label>
-	<button type="submit">Create</button>
+	<button type="submit" class="primary">Create</button>
 </form>
 
 <style>
@@ -39,19 +39,27 @@
 		padding: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
-		margin-bottom: 2rem;
+		gap: 0.35rem;
+		margin: 1rem 0 2rem;
 	}
 	.lists li {
 		display: flex;
 		align-items: center;
 		gap: 0.6rem;
-		padding: 0.4rem 0;
-		border-bottom: 1px solid light-dark(#eee, #2a2a2a);
+		padding: 0.65rem 0.75rem;
+		border-radius: var(--radius-sm);
+		margin: 0 -0.75rem;
+	}
+	.lists li:hover {
+		background: var(--surface-raised);
 	}
 	.lists a {
 		color: inherit;
 		font-weight: 600;
+		text-decoration: none;
+	}
+	.lists a:hover {
+		text-decoration: underline;
 	}
 	.badge {
 		font-size: 0.7rem;
@@ -67,13 +75,7 @@
 		font-size: 0.85rem;
 		opacity: 0.6;
 	}
-	form {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		align-items: center;
-	}
 	.error {
-		color: light-dark(#b91c1c, #f87171);
+		color: var(--danger);
 	}
 </style>

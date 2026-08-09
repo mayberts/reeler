@@ -87,6 +87,8 @@ export interface PlexMetadataItem {
 	/** For tracks: the containing album's ratingKey/title (present on track history/webhook entries). */
 	parentRatingKey?: string;
 	parentTitle?: string;
+	/** Relative path to the poster image, e.g. `/library/metadata/123/thumb/169...`. */
+	thumb?: string;
 }
 
 export interface PlexMetadataResponse {
