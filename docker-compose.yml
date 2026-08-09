@@ -1,6 +1,10 @@
 services:
   reeler:
-    build: .
+    # Built and published by .github/workflows/docker-publish.yml on every push to
+    # main. Use `docker compose pull && docker compose up -d` to update — no build
+    # step needed on the Unraid box itself. Swap back to `build: .` (git URL context
+    # or a local clone) if you'd rather build from source instead.
+    image: ghcr.io/mayberts/reeler:latest
     container_name: reeler
     restart: unless-stopped
     ports:

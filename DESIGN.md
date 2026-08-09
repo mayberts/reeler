@@ -98,12 +98,23 @@ that a fully independent rating scale would introduce.
 ### Deployment
 
 - Single Docker image / docker-compose stack, `/config` volume for the
-  SQLite DB. Deployed in practice via Unraid's Compose Manager plugin,
-  building from the GitHub repo directly (`build.context` as a git URL) —
-  no local clone needed on the Unraid box.
+  SQLite DB. Deployed in practice via Unraid's Compose Manager plugin.
 - No Community Apps template planned — Compose Manager already covers
   this deployment, a CA template would just be a second thing to keep in
   sync with no one asking for it.
+- The image is built and published to GitHub Container Registry
+  (`ghcr.io/mayberts/reeler`) by `.github/workflows/docker-publish.yml`
+  on every push to `main` (tagged `latest` and by short commit SHA) and
+  on version tags (`v*.*.*`, tagged by semver). `docker-compose.yml`
+  pulls that image rather than building from source, so updating on
+  Unraid is `docker compose pull && docker compose up -d` — no compiling
+  on the Unraid box itself, and no local clone or git-URL build context
+  needed either. A GHCR package publishes **private** by default even
+  from a public repo — after the workflow's first run, its visibility
+  needs to be set to public once (repo → Packages → reeler → Package
+  settings → Change visibility), or Unraid needs `docker login ghcr.io`
+  credentials to pull it. Building locally (`build: .`) still works as a
+  fallback if preferred.
 
 ### Poster art
 
@@ -154,7 +165,7 @@ per-type counts are small enough that it isn't a problem yet.
 
 Real-world Plex history/webhook entries for tracks turned out to look
 like `{ title, ratingKey, type, parentTitle, grandparentTitle, viewedAt,
-... }` — the album's *name* (`parentTitle`) is always there as plain
+... }` — the album's _name_ (`parentTitle`) is always there as plain
 text, but the album's `ratingKey` (`parentRatingKey`) never is. The
 original album/track linking logic required both, so it silently never
 fired: tracks got created (from webhook scrobbles, which do carry a real
