@@ -13,6 +13,8 @@ services:
       - PLEX_TOKEN=${PLEX_TOKEN}
       - PLEX_WEBHOOK_TOKEN=${PLEX_WEBHOOK_TOKEN}
       - PLEX_CLIENT_IDENTIFIER=${PLEX_CLIENT_IDENTIFIER}
+      # Optional — leave the .env value blank to disable manual/non-Plex logging.
+      - TMDB_API_KEY=${TMDB_API_KEY}
     volumes:
       # On Unraid, point this at an appdata path, e.g. /mnt/user/appdata/reeler:/config
       - ./config:/config

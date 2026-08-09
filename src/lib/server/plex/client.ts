@@ -84,6 +84,9 @@ export interface PlexMetadataItem {
 	userRating?: number;
 	guid?: string;
 	Guid?: Array<{ id: string }>;
+	/** For tracks: the containing album's ratingKey/title (present on track history/webhook entries). */
+	parentRatingKey?: string;
+	parentTitle?: string;
 }
 
 export interface PlexMetadataResponse {

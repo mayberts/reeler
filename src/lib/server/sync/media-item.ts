@@ -6,7 +6,9 @@ import type { PlexMetadataItem } from '$lib/server/plex/client';
 const PLEX_TYPE_TO_MEDIA_TYPE: Partial<Record<string, MediaType>> = {
 	movie: 'movie',
 	show: 'show',
-	episode: 'episode'
+	episode: 'episode',
+	track: 'track',
+	album: 'album'
 };
 
 function extractExternalIds(item: PlexMetadataItem) {
@@ -25,7 +27,12 @@ function extractExternalIds(item: PlexMetadataItem) {
  * falling back to external ids, so an item created from a history entry is found again
  * later by a library sync (and vice versa) even before either side has both fields.
  *
- * Music (artist/album/track) is out of scope until phase 3 — returns null for those.
+ * Music isn't pre-synced from the library like movies/shows — the catalog can be huge
+ * and "tracking" is about what's actually been played, not mirroring every track. Album
+ * and track items get created lazily here, the same way episodes already are, the first
+ * time they show up in watch history or a webhook. Artists aren't modeled as their own
+ * row (nothing to "track" about an artist itself); a track's `parentTitle` already
+ * carries the artist context via its album.
  */
 export async function upsertMediaItemFromPlex(item: PlexMetadataItem): Promise<string | null> {
 	const type = PLEX_TYPE_TO_MEDIA_TYPE[item.type];
@@ -35,6 +42,15 @@ export async function upsertMediaItemFromPlex(item: PlexMetadataItem): Promise<s
 	if (!type || !item.title || !item.ratingKey) return null;
 
 	const { tmdbId, tvdbId } = extractExternalIds(item);
+
+	let parentId: string | null = null;
+	if (type === 'track' && item.parentRatingKey && item.parentTitle) {
+		parentId = await upsertMediaItemFromPlex({
+			ratingKey: item.parentRatingKey,
+			title: item.parentTitle,
+			type: 'album'
+		});
+	}
 
 	const existing = await db.query.mediaItems.findFirst({
 		where: (fields, { eq, or, and, isNotNull }) =>
@@ -51,7 +67,8 @@ export async function upsertMediaItemFromPlex(item: PlexMetadataItem): Promise<s
 		year: item.year ?? null,
 		tmdbId: tmdbId ?? null,
 		tvdbId: tvdbId ?? null,
-		plexRatingKey: item.ratingKey
+		plexRatingKey: item.ratingKey,
+		parentId
 	};
 
 	if (existing) {

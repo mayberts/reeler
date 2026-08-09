@@ -114,15 +114,22 @@ that a fully independent rating scale would introduce.
    ownership-scoped visibility). Multi-user mapping is still just
    auto-linking on first Plex sign-in — no admin-approval gate yet, see
    open questions.
-3. Music library tracking, manual/non-Plex logging via TMDb/MusicBrainz
-   search.
+3. ✅ Music tracking and manual/non-Plex logging. Music isn't pre-synced
+   from the library like movies/shows — albums and tracks are created
+   lazily from play history/webhooks, the same pattern episodes already
+   used, since eagerly mirroring an entire music catalog isn't useful for
+   "what did I listen to." Manual logging searches TMDb (movies/TV only —
+   MusicBrainz/Last.fm for manually-logged music is still open, see
+   below) and is optional: the app runs fine with no `TMDB_API_KEY` set,
+   that section of the UI just says so instead of the search box.
 4. Stats/dashboards, Unraid Community Apps packaging.
 
 ## Open questions
 
 - Final project name (currently "Reeler", working title only).
-- TMDb API key and MusicBrainz/Last.fm choice for music metadata need to be
-  set up before Phase 3.
+- MusicBrainz/Last.fm choice for manually-logging music specifically
+  (TMDb doesn't cover music) is still unresolved — not needed yet since
+  manual logging only covers movies/TV so far.
 - ~~Whether household member linking needs explicit admin approval~~ —
   resolved for now: any Plex account that completes the OAuth sign-in
   auto-links to a new Reeler account, first one in becomes admin. No

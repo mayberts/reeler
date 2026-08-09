@@ -1,10 +1,12 @@
-import { error } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import { eq, desc } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { watchHistory } from '$lib/server/db/schema';
-import type { PageServerLoad } from './$types';
+import { watchHistory, mediaItems, type MediaType } from '$lib/server/db/schema';
+import { searchTmdb } from '$lib/server/tmdb/client';
+import { getTmdbApiKey } from '$lib/server/tmdb/config';
+import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) error(401, 'Not authenticated');
 	const user = locals.user;
 
@@ -15,5 +17,55 @@ export const load: PageServerLoad = async ({ locals }) => {
 		with: { mediaItem: true }
 	});
 
-	return { history };
+	const logQuery = url.searchParams.get('logQuery')?.trim() ?? '';
+	const logResults = logQuery ? await searchTmdb(logQuery) : [];
+
+	return { history, logQuery, logResults, tmdbEnabled: getTmdbApiKey() !== null };
+};
+
+export const actions: Actions = {
+	logManual: async ({ request, locals }) => {
+		if (!locals.user) return fail(401);
+		const user = locals.user;
+
+		const form = await request.formData();
+		const tmdbId = form.get('tmdbId');
+		const title = form.get('title');
+		const yearRaw = form.get('year');
+		const mediaType = form.get('mediaType');
+		const watchedAtRaw = form.get('watchedAt');
+
+		if (
+			typeof tmdbId !== 'string' ||
+			typeof title !== 'string' ||
+			(mediaType !== 'movie' && mediaType !== 'show')
+		) {
+			return fail(400, { message: 'Missing fields' });
+		}
+
+		const year = typeof yearRaw === 'string' && yearRaw ? Number(yearRaw) : null;
+		const watchedAt =
+			typeof watchedAtRaw === 'string' && watchedAtRaw ? new Date(watchedAtRaw) : new Date();
+
+		let mediaItem = await db.query.mediaItems.findFirst({
+			where: eq(mediaItems.tmdbId, tmdbId)
+		});
+
+		if (!mediaItem) {
+			const [created] = await db
+				.insert(mediaItems)
+				.values({ type: mediaType as MediaType, title, year, tmdbId })
+				.returning();
+			mediaItem = created;
+		}
+
+		await db.insert(watchHistory).values({
+			userId: user.id,
+			mediaItemId: mediaItem.id,
+			watchedAt,
+			source: 'manual'
+		});
+
+		return { loggedSuccess: true };
+	}
 };
