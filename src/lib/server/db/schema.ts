@@ -40,6 +40,22 @@ export const users = sqliteTable(
 	(table) => [uniqueIndex('users_plex_account_id_idx').on(table.plexAccountId)]
 );
 
+export type User = typeof users.$inferSelect;
+
+/** A logged-in session, identified by a high-entropy id stored in an httpOnly cookie. */
+export const sessions = sqliteTable(
+	'sessions',
+	{
+		id: id(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id),
+		expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+		createdAt: createdAt()
+	},
+	(table) => [index('sessions_user_id_idx').on(table.userId)]
+);
+
 /**
  * Canonical media entity, keyed by an external ID (TMDb/TVDb/MusicBrainz) rather than
  * Plex's ratingKey, so history survives a library rebuild or server migration.
@@ -147,7 +163,12 @@ export const listItems = sqliteTable(
 export const usersRelations = relations(users, ({ many }) => ({
 	watchHistory: many(watchHistory),
 	ratings: many(ratings),
-	lists: many(lists)
+	lists: many(lists),
+	sessions: many(sessions)
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+	user: one(users, { fields: [sessions.userId], references: [users.id] })
 }));
 
 export const mediaItemsRelations = relations(mediaItems, ({ one, many }) => ({

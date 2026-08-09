@@ -12,6 +12,8 @@ export function getPlexConfig() {
 		/** Admin token, used for all library/history reads (per-user data is filtered via accountID). */
 		token: required('PLEX_TOKEN', env.PLEX_TOKEN),
 		/** Shared secret used as a URL segment on the webhook route, since Plex does not sign webhook payloads. */
-		webhookToken: required('PLEX_WEBHOOK_TOKEN', env.PLEX_WEBHOOK_TOKEN)
+		webhookToken: required('PLEX_WEBHOOK_TOKEN', env.PLEX_WEBHOOK_TOKEN),
+		/** Stable id identifying this app instance to plex.tv for the OAuth PIN flow. Any fixed random string. */
+		clientIdentifier: required('PLEX_CLIENT_IDENTIFIER', env.PLEX_CLIENT_IDENTIFIER)
 	};
 }

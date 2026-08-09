@@ -104,10 +104,13 @@ that a fully independent rating scale would introduce.
 
 ## Roadmap
 
-1. Plex OAuth account linking, single-server library sync (movies + TV),
-   watch-history backfill, webhook receiver.
-2. Multi-user mapping to Plex Home accounts, two-way ratings sync, personal
-   lists.
+1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
+   watch-history backfill, webhook receiver. Ratings persistence (one-way,
+   Plex → Reeler, on `media.rate` webhook) also landed here since the
+   webhook handler needed it anyway; the write-back-to-Plex half of the
+   two-way sync is still phase 2 work.
+2. Multi-user mapping to Plex Home accounts (beyond auto-linking — see
+   below), rating write-back to Plex, personal lists.
 3. Music library tracking, manual/non-Plex logging via TMDb/MusicBrainz
    search.
 4. Stats/dashboards, Unraid Community Apps packaging.
@@ -117,5 +120,7 @@ that a fully independent rating scale would introduce.
 - Final project name (currently "Reeler", working title only).
 - TMDb API key and MusicBrainz/Last.fm choice for music metadata need to be
   set up before Phase 3.
-- Whether household member linking needs explicit admin approval, or
-  auto-links any Plex Home user on first login.
+- ~~Whether household member linking needs explicit admin approval~~ —
+  resolved for now: any Plex account that completes the OAuth sign-in
+  auto-links to a new Reeler account, first one in becomes admin. No
+  approval gate yet; revisit if that's too open for a shared server.
