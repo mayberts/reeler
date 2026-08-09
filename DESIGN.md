@@ -109,8 +109,11 @@ that a fully independent rating scale would introduce.
    Plex → Reeler, on `media.rate` webhook) also landed here since the
    webhook handler needed it anyway; the write-back-to-Plex half of the
    two-way sync is still phase 2 work.
-2. Multi-user mapping to Plex Home accounts (beyond auto-linking — see
-   below), rating write-back to Plex, personal lists.
+2. ✅ Rating write-back to Plex (two-way sync is now complete both
+   directions) and personal/shared lists (create, add/remove items,
+   ownership-scoped visibility). Multi-user mapping is still just
+   auto-linking on first Plex sign-in — no admin-approval gate yet, see
+   open questions.
 3. Music library tracking, manual/non-Plex logging via TMDb/MusicBrainz
    search.
 4. Stats/dashboards, Unraid Community Apps packaging.
