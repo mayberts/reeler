@@ -1,5 +1,4 @@
 import { redirect } from '@sveltejs/kit';
-import { dev } from '$app/environment';
 import { createPin, buildAuthUrl } from '$lib/server/plex/auth';
 import { PIN_COOKIE_NAME } from '$lib/server/auth/plex-pin';
 import type { Actions, PageServerLoad } from './$types';
@@ -22,7 +21,7 @@ export const actions: Actions = {
 		cookies.set(PIN_COOKIE_NAME, String(pin.id), {
 			path: '/',
 			httpOnly: true,
-			secure: !dev,
+			secure: url.protocol === 'https:',
 			sameSite: 'lax',
 			maxAge: 600
 		});

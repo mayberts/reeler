@@ -1,6 +1,5 @@
 import { eq } from 'drizzle-orm';
 import type { Cookies } from '@sveltejs/kit';
-import { dev } from '$app/environment';
 import { db } from '$lib/server/db';
 import { sessions } from '$lib/server/db/schema';
 
@@ -33,11 +32,21 @@ export async function deleteSession(sessionId: string) {
 	await db.delete(sessions).where(eq(sessions.id, sessionId));
 }
 
-export function setSessionCookie(cookies: Cookies, sessionId: string, expiresAt: Date) {
+/**
+ * `secure` should reflect whether *this request* arrived over HTTPS — not a static
+ * dev/prod flag. Reeler is commonly run as plain HTTP with no reverse proxy in front,
+ * and a cookie marked Secure is silently dropped by the browser on such a connection.
+ */
+export function setSessionCookie(
+	cookies: Cookies,
+	sessionId: string,
+	expiresAt: Date,
+	secure: boolean
+) {
 	cookies.set(SESSION_COOKIE_NAME, sessionId, {
 		path: '/',
 		httpOnly: true,
-		secure: !dev,
+		secure,
 		sameSite: 'lax',
 		expires: expiresAt
 	});

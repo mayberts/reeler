@@ -5,7 +5,7 @@ import { createSession, setSessionCookie } from '$lib/server/auth/session';
 import { PIN_COOKIE_NAME } from '$lib/server/auth/plex-pin';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ cookies }) => {
+export const load: PageServerLoad = async ({ cookies, url }) => {
 	const pinId = cookies.get(PIN_COOKIE_NAME);
 	cookies.delete(PIN_COOKIE_NAME, { path: '/' });
 
@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	const plexUser = await getPlexUser(pin.authToken);
 	const user = await findOrCreateUserFromPlex(plexUser);
 	const session = await createSession(user.id);
-	setSessionCookie(cookies, session.id, session.expiresAt);
+	setSessionCookie(cookies, session.id, session.expiresAt, url.protocol === 'https:');
 
 	redirect(303, '/');
 };
