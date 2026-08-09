@@ -33,20 +33,19 @@ export async function deleteSession(sessionId: string) {
 }
 
 /**
- * `secure` should reflect whether *this request* arrived over HTTPS — not a static
- * dev/prod flag. Reeler is commonly run as plain HTTP with no reverse proxy in front,
- * and a cookie marked Secure is silently dropped by the browser on such a connection.
+ * Deliberately never Secure: Reeler doesn't terminate TLS in any deployment this app
+ * supports, so the connection is always plain HTTP from Node's point of view. This used
+ * to be derived from the request's url.protocol, but that proved unreliable in practice
+ * — it reported 'https:' on a connection that was verifiably plain HTTP (confirmed via
+ * logging), causing the browser to correctly discard the cookie as insecure. If a
+ * TLS-terminating reverse proxy in front of Reeler is ever supported, this should become
+ * an explicit opt-in (env var), not inferred from a header.
  */
-export function setSessionCookie(
-	cookies: Cookies,
-	sessionId: string,
-	expiresAt: Date,
-	secure: boolean
-) {
+export function setSessionCookie(cookies: Cookies, sessionId: string, expiresAt: Date) {
 	cookies.set(SESSION_COOKIE_NAME, sessionId, {
 		path: '/',
 		httpOnly: true,
-		secure,
+		secure: false,
 		sameSite: 'lax',
 		expires: expiresAt
 	});
