@@ -18,6 +18,9 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 
 	try {
 		const pin = await checkPin(pinId);
+		// Temporary diagnostic: never logs the token itself, just whether Plex has
+		// attached one to this pin yet.
+		console.log('[login] poll', { pinId, code: pin.code, hasAuthToken: !!pin.authToken });
 		if (!pin.authToken) return json({ status: 'pending' });
 
 		const plexUser = await getPlexUser(pin.authToken);
