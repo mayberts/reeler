@@ -38,6 +38,17 @@
 			}
 
 			const response = await fetch(`/api/auth/plex/poll?pin=${pinId}`);
+
+			// Any non-OK response (a crash, a proxy error page, ...) is treated the same as
+			// an explicit { status: 'error' } — never silently keep polling against
+			// something broken.
+			if (!response.ok) {
+				clearInterval(interval);
+				status = 'error';
+				errorMessage = 'Something went wrong talking to plex.tv. Try again.';
+				return;
+			}
+
 			const result = await response.json();
 
 			if (result.status === 'complete') {
