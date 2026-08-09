@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 
 	type Status = 'idle' | 'waiting' | 'error';
@@ -58,29 +57,43 @@
 			return;
 		}
 
-		const response = await fetch(`/api/auth/plex/poll?pin=${activePinId}`);
+		// Wrapped so a JS-level failure here (a network hiccup, a rejected promise, ...)
+		// turns into a visible error instead of silently freezing the UI where it stood
+		// — an uncaught rejection inside a setInterval callback doesn't crash anything
+		// or show up anywhere the user can see, it just quietly stops making progress.
+		try {
+			const response = await fetch(`/api/auth/plex/poll?pin=${activePinId}`);
 
-		// Any non-OK response (a crash, a proxy error page, ...) is treated the same as
-		// an explicit { status: 'error' } — never silently keep polling against
-		// something broken.
-		if (!response.ok) {
+			// Any non-OK response (a crash, a proxy error page, ...) is treated the same
+			// as an explicit { status: 'error' } — never silently keep polling against
+			// something broken.
+			if (!response.ok) {
+				stopPolling();
+				status = 'error';
+				errorMessage = 'Something went wrong talking to plex.tv. Try again.';
+				return;
+			}
+
+			const result = await response.json();
+
+			if (result.status === 'complete') {
+				stopPolling();
+				// A full navigation, not client-side goto() — this is the one place a
+				// freshly-set session cookie needs to definitely be picked up, and a
+				// plain reload has no dependency on the SPA router behaving as expected.
+				window.location.href = resolve('/');
+			} else if (result.status === 'error') {
+				stopPolling();
+				status = 'error';
+				errorMessage = 'Something went wrong talking to plex.tv. Try again.';
+			}
+			// 'pending' — keep polling
+		} catch (err) {
+			console.error('[login] poll failed', err);
 			stopPolling();
 			status = 'error';
-			errorMessage = 'Something went wrong talking to plex.tv. Try again.';
-			return;
+			errorMessage = 'Something went wrong. Try again.';
 		}
-
-		const result = await response.json();
-
-		if (result.status === 'complete') {
-			stopPolling();
-			await goto(resolve('/'));
-		} else if (result.status === 'error') {
-			stopPolling();
-			status = 'error';
-			errorMessage = 'Something went wrong talking to plex.tv. Try again.';
-		}
-		// 'pending' — keep polling
 	}
 
 	// Backgrounded tabs can have their timers throttled or fully frozen (Edge's
