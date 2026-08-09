@@ -82,6 +82,16 @@ export const mediaItems = sqliteTable(
 		 * ever being placed in a client-facing `<img src>` directly.
 		 */
 		plexThumb: text('plex_thumb'),
+		/** Public backdrop URL (TMDb) — safe to link to directly, same as artworkUrl. */
+		backdropUrl: text('backdrop_url'),
+		/** Plex's relative backdrop ("art") path — proxied server-side, same as plexThumb. */
+		plexArt: text('plex_art'),
+		tagline: text('tagline'),
+		summary: text('summary'),
+		runtimeMinutes: integer('runtime_minutes'),
+		contentRating: text('content_rating'),
+		/** JSON-encoded string array, e.g. `["Drama","Western"]` — parsed at render time. */
+		genres: text('genres'),
 		createdAt: createdAt()
 	},
 	(table) => [

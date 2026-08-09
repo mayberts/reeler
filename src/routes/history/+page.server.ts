@@ -2,7 +2,7 @@ import { error, fail } from '@sveltejs/kit';
 import { eq, desc } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { watchHistory, mediaItems, type MediaType } from '$lib/server/db/schema';
-import { searchTmdb } from '$lib/server/tmdb/client';
+import { searchTmdb, getTmdbDetails } from '$lib/server/tmdb/client';
 import { getTmdbApiKey } from '$lib/server/tmdb/config';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -54,9 +54,29 @@ export const actions: Actions = {
 		});
 
 		if (!mediaItem) {
+			// Best-effort — a failed detail fetch shouldn't block logging the watch itself,
+			// it just means the detail page will be a little sparser for this item.
+			let details: Awaited<ReturnType<typeof getTmdbDetails>> = null;
+			try {
+				details = await getTmdbDetails(tmdbId, mediaType);
+			} catch (err) {
+				console.error('[history] failed to fetch TMDb details', err);
+			}
+
 			const [created] = await db
 				.insert(mediaItems)
-				.values({ type: mediaType as MediaType, title, year, tmdbId, artworkUrl })
+				.values({
+					type: mediaType as MediaType,
+					title,
+					year,
+					tmdbId,
+					artworkUrl,
+					backdropUrl: details?.backdropUrl ?? null,
+					tagline: details?.tagline ?? null,
+					summary: details?.summary ?? null,
+					runtimeMinutes: details?.runtimeMinutes ?? null,
+					genres: details?.genres.length ? JSON.stringify(details.genres) : null
+				})
 				.returning();
 			mediaItem = created;
 		}

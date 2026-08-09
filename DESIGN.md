@@ -113,7 +113,27 @@ to anyone who views page source, browser history, or a screenshot).
 Instead `media_items.plexThumb` stores Plex's relative thumb path, and
 `/api/media/[id]/poster` fetches it server-side and streams the bytes
 back — the token stays server-side. TMDb posters (`artworkUrl`) are
-already public, so those just redirect to TMDb's own CDN.
+already public, so those just redirect to TMDb's own CDN. Backdrops
+(`plexArt`/`backdropUrl`, served via `/api/media/[id]/backdrop`) follow
+the identical pattern.
+
+### Detail pages
+
+Per-title pages at `/media/[id]` (movies/shows/episodes/tracks/albums
+share one route, rendering conditionally by type) — backdrop hero, poster,
+tagline/genres/runtime/content rating, synopsis, and action pills (mark
+watched, rate, add to list). Deliberately doesn't include Radarr/Sonarr-style
+acquisition-tool integration or streaming "where to watch" availability —
+those are a different category of app (request/download management) from
+what Reeler does (tracking), and "where to watch" would add a new paid
+third-party API dependency for comparatively low value here.
+
+Richer metadata (tagline, summary, runtime, content rating, genres) comes
+free from Plex — the same `/library/sections/.../all` and history/webhook
+calls already in use return it, no extra requests needed. For
+manually-logged (TMDb) items it costs one extra API call, made at log
+time rather than lazily on page view, so the detail page never needs to
+reach out to TMDb itself.
 
 ## Roadmap
 

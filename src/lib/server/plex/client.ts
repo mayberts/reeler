@@ -89,6 +89,14 @@ export interface PlexMetadataItem {
 	parentTitle?: string;
 	/** Relative path to the poster image, e.g. `/library/metadata/123/thumb/169...`. */
 	thumb?: string;
+	/** Relative path to the backdrop/art image. */
+	art?: string;
+	tagline?: string;
+	summary?: string;
+	/** Milliseconds. */
+	duration?: number;
+	contentRating?: string;
+	Genre?: Array<{ tag: string }>;
 }
 
 export interface PlexMetadataResponse {

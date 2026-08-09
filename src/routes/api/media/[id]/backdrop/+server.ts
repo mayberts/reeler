@@ -5,15 +5,10 @@ import { mediaItems } from '$lib/server/db/schema';
 import { respondWithImage } from '$lib/server/media/image-proxy';
 import type { RequestHandler } from './$types';
 
-/**
- * Serves a media item's poster. Plex posters require the admin token, so they're
- * fetched here, server-side, and streamed back — the token never reaches the client,
- * unlike a naive `<img src>` pointed straight at Plex would. TMDb posters are already
- * public, so those just redirect to TMDb's own CDN instead of being proxied.
- */
+/** Same security model as the poster route — see image-proxy.ts. */
 export const GET: RequestHandler = async ({ params }) => {
 	const mediaItem = await db.query.mediaItems.findFirst({ where: eq(mediaItems.id, params.id) });
 	if (!mediaItem) error(404, 'Not found');
 
-	return respondWithImage(mediaItem.plexThumb, mediaItem.artworkUrl);
+	return respondWithImage(mediaItem.plexArt, mediaItem.backdropUrl);
 };

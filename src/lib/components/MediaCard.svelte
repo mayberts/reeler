@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
+
 	interface Props {
-		/** Required to show artwork via the poster proxy (`hasArtwork`); optional if `posterUrl` is given instead. */
+		/** Required to show artwork via the poster proxy (`hasArtwork`) and to link to the detail page; optional if `posterUrl` is given instead (e.g. a not-yet-logged TMDb search result, which has no detail page yet). */
 		id?: string;
 		title: string;
 		year?: number | null;
@@ -16,7 +18,7 @@
 	const imgSrc = $derived(posterUrl ?? (hasArtwork && id ? `/api/media/${id}/poster` : null));
 </script>
 
-<div class="card">
+{#snippet content()}
 	<div class="poster">
 		{#if imgSrc}
 			<img src={imgSrc} alt="" loading="lazy" />
@@ -30,7 +32,13 @@
 			<span class="sub">{year ?? ''}{year && meta ? ' · ' : ''}{meta ?? ''}</span>
 		{/if}
 	</div>
-</div>
+{/snippet}
+
+{#if id}
+	<a class="card" href={resolve('/media/[id]', { id })}>{@render content()}</a>
+{:else}
+	<div class="card">{@render content()}</div>
+{/if}
 
 <style>
 	.card {
@@ -38,6 +46,12 @@
 		flex-direction: column;
 		gap: 0.4rem;
 		width: 100%;
+		color: inherit;
+		text-decoration: none;
+	}
+	a.card:hover .poster {
+		outline: 2px solid var(--border-strong);
+		outline-offset: 1px;
 	}
 	.poster {
 		aspect-ratio: 2 / 3;

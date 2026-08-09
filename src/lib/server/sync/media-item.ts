@@ -69,10 +69,20 @@ export async function upsertMediaItemFromPlex(item: PlexMetadataItem): Promise<s
 		tvdbId: tvdbId ?? null,
 		plexRatingKey: item.ratingKey,
 		parentId,
-		// Not every payload carries a thumb (e.g. the synthetic album item built above for
-		// a track has none) — fall back to whatever's already stored rather than clobbering
-		// a known poster with null.
-		plexThumb: item.thumb ?? existing?.plexThumb ?? null
+		// Not every payload carries these fields (e.g. the synthetic album item built above
+		// for a track has none of them) — fall back to whatever's already stored rather than
+		// clobbering known data with null.
+		plexThumb: item.thumb ?? existing?.plexThumb ?? null,
+		plexArt: item.art ?? existing?.plexArt ?? null,
+		tagline: item.tagline ?? existing?.tagline ?? null,
+		summary: item.summary ?? existing?.summary ?? null,
+		runtimeMinutes: item.duration
+			? Math.round(item.duration / 60000)
+			: (existing?.runtimeMinutes ?? null),
+		contentRating: item.contentRating ?? existing?.contentRating ?? null,
+		genres: item.Genre?.length
+			? JSON.stringify(item.Genre.map((g) => g.tag))
+			: (existing?.genres ?? null)
 	};
 
 	if (existing) {
