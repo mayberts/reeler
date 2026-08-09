@@ -22,9 +22,14 @@ export function listLibrarySections() {
 	return plexFetch<PlexLibrarySectionsResponse>('/library/sections');
 }
 
-/** All items in a given library section, e.g. all movies in a "Movies" section. */
-export function listSectionItems(sectionKey: string) {
-	return plexFetch<PlexMetadataResponse>(`/library/sections/${sectionKey}/all`);
+/**
+ * All items in a given library section, e.g. all movies in a "Movies" section. For a
+ * music (artist-type) section, the section's direct children are artists — pass
+ * `{ type: '9' }` to instead get a flat list of every album, the same way `type: '4'`
+ * would flatten episodes under a show section. Plex's numeric metadata types: 9 = album.
+ */
+export function listSectionItems(sectionKey: string, params: Record<string, string> = {}) {
+	return plexFetch<PlexMetadataResponse>(`/library/sections/${sectionKey}/all`, params);
 }
 
 /**

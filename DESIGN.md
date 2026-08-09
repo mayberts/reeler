@@ -154,12 +154,20 @@ library, filtered by `media_items.type` (`music` currently means
 not getting their own top-level browse page). Each shows a total count,
 a title search box, and a sort control (title/year/recently added), and
 reuses `MediaCard`/`.card-grid` rather than introducing a new visual
-style. Cards get a small checkmark badge when the signed-in user has a
+style. `/music` uses square (1:1) artwork instead of the 2:3 poster
+ratio the other two use — matching how Plex itself displays album
+covers. Cards get a small checkmark badge when the signed-in user has a
 `watch_history` row for that item — a cheap single follow-up query
 against just the rendered page, not a join, since it only needs to cover
 what's on screen. No pagination yet; the existing card-grid pages
-(dashboard, history, etc.) don't paginate either, and the real library's
-per-type counts are small enough that it isn't a problem yet.
+(dashboard, history, etc.) don't paginate either, and per-type counts
+(low thousands, even for a large music library) are small enough that
+it isn't a problem yet.
+
+"Full synced library" for `/music` originally meant "every album
+that's actually been played," not Plex's whole album catalog — see
+below, revised after a real deployment made the gap obvious (4,588 vs.
+1,053).
 
 ### Music: sparse payload bug (fixed)
 
@@ -185,6 +193,25 @@ doesn't even carry `ratingKey` for tracks) — `repairOrphanedTrackParents()`
 instead re-resolves each orphaned track directly by its already-stored
 `plexRatingKey`, and runs automatically as part of "Sync now".
 
+### Music: albums now pre-synced
+
+Originally music was lazy-only end to end (see phase 3 below as
+shipped) — no album existed until something in it had actually been
+played. That made sense in the abstract ("tracking" is about what's
+been listened to) but read as broken in practice once `/music` sat
+next to `/movies` and `/shows`, which do show the full library: a real
+deployment had 4,588 albums in Plex and only 1,053 in Reeler, and there
+was no way to tell "haven't played it" apart from "sync is missing
+something" from the UI alone.
+
+`syncLibrary()` now includes artist-type sections, requesting Plex's
+flattened album listing (`/library/sections/{key}/all?type=9` — Plex's
+metadata type 9 is "album") the same way a show section's episodes
+could be flattened with `type=4`. This mirrors the movie/show split
+exactly: albums (like movies/shows) are worth browsing before you've
+listened to anything, tracks (like episodes) aren't worth mirroring up
+front — they're still created lazily from play history/webhooks only.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
@@ -197,14 +224,17 @@ instead re-resolves each orphaned track directly by its already-stored
    ownership-scoped visibility). Multi-user mapping is still just
    auto-linking on first Plex sign-in — no admin-approval gate yet, see
    open questions.
-3. ✅ Music tracking and manual/non-Plex logging. Music isn't pre-synced
-   from the library like movies/shows — albums and tracks are created
-   lazily from play history/webhooks, the same pattern episodes already
-   used, since eagerly mirroring an entire music catalog isn't useful for
-   "what did I listen to." Manual logging searches TMDb (movies/TV only —
-   MusicBrainz/Last.fm for manually-logged music is still open, see
-   below) and is optional: the app runs fine with no `TMDB_API_KEY` set,
-   that section of the UI just says so instead of the search box.
+3. ✅ Music tracking and manual/non-Plex logging. Albums are pre-synced
+   from the library like movies/shows (see Deployment/Browse-grid pages
+   below — originally shipped as lazy-only, revised after a real
+   library showed the gap: 4,588 albums in Plex vs. 1,053 that had
+   actually been played); tracks stay lazy, created from play
+   history/webhooks the same way episodes are, since a track list isn't
+   worth mirroring up front just to track what's been listened to.
+   Manual logging searches TMDb (movies/TV only — MusicBrainz/Last.fm
+   for manually-logged music is still open, see below) and is optional:
+   the app runs fine with no `TMDB_API_KEY` set, that section of the UI
+   just says so instead of the search box.
 4. ✅ Stats page: hero tiles (total watches, unique titles, ratings given,
    average rating), a watch-count breakdown by media type, a 12-month
    activity bar chart, and top-watched/top-rated lists. (Unraid Community
