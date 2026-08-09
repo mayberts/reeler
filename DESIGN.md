@@ -10,7 +10,7 @@ Status: **scoping only, nothing implemented yet.**
 - Ratings, kept in sync both ways between Plex and the app.
 - Personal and shared lists (watchlists, curated lists, etc.).
 - Multi-user / household support, mapped to Plex Home users.
-- Allow logging items *not* in the Plex library (theatrical releases, other
+- Allow logging items _not_ in the Plex library (theatrical releases, other
   streaming services) via metadata search.
 - Fast and reliable: the app should feel instant, and never silently lose a
   watch event.

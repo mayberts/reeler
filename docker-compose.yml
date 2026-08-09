@@ -1,0 +1,17 @@
+services:
+  reeler:
+    build: .
+    container_name: reeler
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      - PORT=3000
+      # Lives inside the /config volume so it persists across container recreation.
+      - DATABASE_URL=/config/reeler.db
+      - PLEX_SERVER_URL=${PLEX_SERVER_URL}
+      - PLEX_TOKEN=${PLEX_TOKEN}
+      - PLEX_WEBHOOK_TOKEN=${PLEX_WEBHOOK_TOKEN}
+    volumes:
+      # On Unraid, point this at an appdata path, e.g. /mnt/user/appdata/reeler:/config
+      - ./config:/config
