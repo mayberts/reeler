@@ -98,9 +98,12 @@ that a fully independent rating scale would introduce.
 ### Deployment
 
 - Single Docker image / docker-compose stack, `/config` volume for the
-  SQLite DB.
-- Longer-term: Unraid Community Apps template (XML) wrapping the image,
-  with `PLEX_URL` / `PLEX_TOKEN` env vars and a WebUI port.
+  SQLite DB. Deployed in practice via Unraid's Compose Manager plugin,
+  building from the GitHub repo directly (`build.context` as a git URL) —
+  no local clone needed on the Unraid box.
+- No Community Apps template planned — Compose Manager already covers
+  this deployment, a CA template would just be a second thing to keep in
+  sync with no one asking for it.
 
 ## Roadmap
 
@@ -122,7 +125,8 @@ that a fully independent rating scale would introduce.
    MusicBrainz/Last.fm for manually-logged music is still open, see
    below) and is optional: the app runs fine with no `TMDB_API_KEY` set,
    that section of the UI just says so instead of the search box.
-4. Stats/dashboards, Unraid Community Apps packaging.
+4. Stats/dashboards. (Unraid Community Apps packaging dropped — not
+   needed, see Deployment above.)
 
 ## Open questions
 
