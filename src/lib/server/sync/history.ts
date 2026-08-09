@@ -28,25 +28,31 @@ export async function backfillWatchHistory(
 	let entriesInserted = 0;
 
 	for (const entry of entries) {
-		if (!entry.viewedAt) continue;
+		try {
+			if (!entry.viewedAt) continue;
 
-		const mediaItemId = await upsertMediaItemFromPlex(entry);
-		if (!mediaItemId) continue;
+			const mediaItemId = await upsertMediaItemFromPlex(entry);
+			if (!mediaItemId) continue;
 
-		const watchedAt = new Date(entry.viewedAt * 1000);
+			const watchedAt = new Date(entry.viewedAt * 1000);
 
-		const existing = await db.query.watchHistory.findFirst({
-			where: (fields, { eq, and }) =>
-				and(
-					eq(fields.userId, userId),
-					eq(fields.mediaItemId, mediaItemId),
-					eq(fields.watchedAt, watchedAt)
-				)
-		});
-		if (existing) continue;
+			const existing = await db.query.watchHistory.findFirst({
+				where: (fields, { eq, and }) =>
+					and(
+						eq(fields.userId, userId),
+						eq(fields.mediaItemId, mediaItemId),
+						eq(fields.watchedAt, watchedAt)
+					)
+			});
+			if (existing) continue;
 
-		await db.insert(watchHistory).values({ userId, mediaItemId, watchedAt, source: 'plex' });
-		entriesInserted++;
+			await db.insert(watchHistory).values({ userId, mediaItemId, watchedAt, source: 'plex' });
+			entriesInserted++;
+		} catch (err) {
+			// One malformed entry shouldn't abort the whole batch — everything before it
+			// has already committed, and the backstop reconciliation will retry this one.
+			console.error('[sync] failed to process history entry', { ratingKey: entry.ratingKey }, err);
+		}
 	}
 
 	return { entriesSeen: entries.length, entriesInserted };

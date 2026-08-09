@@ -24,8 +24,13 @@ export async function syncLibrary(): Promise<LibrarySyncResult> {
 	for (const section of sections) {
 		const { MediaContainer: items } = await listSectionItems(section.key);
 		for (const item of items.Metadata ?? []) {
-			const id = await upsertMediaItemFromPlex(item);
-			if (id) itemsUpserted++;
+			try {
+				const id = await upsertMediaItemFromPlex(item);
+				if (id) itemsUpserted++;
+			} catch (err) {
+				// One malformed item shouldn't abort the whole section/sync.
+				console.error('[sync] failed to upsert library item', { ratingKey: item.ratingKey }, err);
+			}
 		}
 	}
 

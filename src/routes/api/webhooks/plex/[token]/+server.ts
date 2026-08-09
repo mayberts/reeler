@@ -36,7 +36,14 @@ export const POST: RequestHandler = async ({ request, params }) => {
 		error(400, 'Payload is not valid JSON');
 	}
 
-	await handlePlexWebhookEvent(payload);
+	try {
+		await handlePlexWebhookEvent(payload);
+	} catch (err) {
+		// Don't let one bad/unexpected payload surface as a 500 — the polling backstop
+		// will catch anything this drops, and Plex would otherwise retry-storm a
+		// webhook that's failing for a reason retrying won't fix.
+		console.error('[webhook] failed to process event', { event: payload.event }, err);
+	}
 
 	return json({ ok: true });
 };

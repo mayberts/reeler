@@ -29,7 +29,10 @@ function extractExternalIds(item: PlexMetadataItem) {
  */
 export async function upsertMediaItemFromPlex(item: PlexMetadataItem): Promise<string | null> {
 	const type = PLEX_TYPE_TO_MEDIA_TYPE[item.type];
-	if (!type) return null;
+	// Plex's history endpoint can return stub/orphaned entries (e.g. for a show that's
+	// since been removed from the library) missing fields a normal item always has —
+	// skip rather than let a NOT NULL constraint blow up the whole sync batch.
+	if (!type || !item.title || !item.ratingKey) return null;
 
 	const { tmdbId, tvdbId } = extractExternalIds(item);
 
