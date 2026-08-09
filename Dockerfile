@@ -7,6 +7,11 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# SvelteKit's build analyses server modules, which import the DB client — it opens a
+# sqlite file eagerly at import time and throws if DATABASE_URL is unset. This is a
+# build-time-only placeholder; the real path is set via the runtime environment and
+# entrypoint.sh applies the schema to that path, not this one.
+ENV DATABASE_URL=/tmp/build.db
 RUN npm run build
 
 FROM node:22-alpine
