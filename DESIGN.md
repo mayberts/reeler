@@ -135,6 +135,21 @@ manually-logged (TMDb) items it costs one extra API call, made at log
 time rather than lazily on page view, so the detail page never needs to
 reach out to TMDb itself.
 
+### Browse-grid pages
+
+`/movies`, `/shows`, `/music` — poster-grid views of the full synced
+library, filtered by `media_items.type` (`music` currently means
+`album`; tracks aren't shown at this level, same reasoning as episodes
+not getting their own top-level browse page). Each shows a total count,
+a title search box, and a sort control (title/year/recently added), and
+reuses `MediaCard`/`.card-grid` rather than introducing a new visual
+style. Cards get a small checkmark badge when the signed-in user has a
+`watch_history` row for that item — a cheap single follow-up query
+against just the rendered page, not a join, since it only needs to cover
+what's on screen. No pagination yet; the existing card-grid pages
+(dashboard, history, etc.) don't paginate either, and the real library's
+per-type counts are small enough that it isn't a problem yet.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

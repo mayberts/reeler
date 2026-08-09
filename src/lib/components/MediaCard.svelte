@@ -11,9 +11,19 @@
 		/** Overrides `hasArtwork`/`id`: a public URL to use directly (e.g. a not-yet-logged TMDb search result). */
 		posterUrl?: string | null;
 		meta?: string;
+		/** Shows a small "seen" checkmark badge over the poster — used by the browse-grid pages. */
+		watched?: boolean;
 	}
 
-	let { id, title, year, hasArtwork = false, posterUrl = null, meta }: Props = $props();
+	let {
+		id,
+		title,
+		year,
+		hasArtwork = false,
+		posterUrl = null,
+		meta,
+		watched = false
+	}: Props = $props();
 
 	const imgSrc = $derived(posterUrl ?? (hasArtwork && id ? `/api/media/${id}/poster` : null));
 </script>
@@ -24,6 +34,9 @@
 			<img src={imgSrc} alt="" loading="lazy" />
 		{:else}
 			<div class="placeholder" aria-hidden="true">{title.charAt(0).toUpperCase()}</div>
+		{/if}
+		{#if watched}
+			<span class="watched-badge" title="Watched">✓</span>
 		{/if}
 	</div>
 	<div class="info">
@@ -54,10 +67,27 @@
 		outline-offset: 1px;
 	}
 	.poster {
+		position: relative;
 		aspect-ratio: 2 / 3;
 		border-radius: 0.4rem;
 		overflow: hidden;
 		background: light-dark(#e5e4df, #232322);
+	}
+	.watched-badge {
+		position: absolute;
+		top: 0.35rem;
+		right: 0.35rem;
+		width: 1.25rem;
+		height: 1.25rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0.7rem;
+		font-weight: 700;
+		border-radius: 50%;
+		background: var(--success);
+		color: var(--accent-ink);
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 	}
 	.poster img {
 		width: 100%;

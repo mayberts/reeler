@@ -8,6 +8,9 @@
 
 	const navLinks = [
 		{ href: '/', label: 'Dashboard' },
+		{ href: '/movies', label: 'Movies' },
+		{ href: '/shows', label: 'Shows' },
+		{ href: '/music', label: 'Music' },
 		{ href: '/history', label: 'History' },
 		{ href: '/ratings', label: 'Ratings' },
 		{ href: '/lists', label: 'Lists' },
