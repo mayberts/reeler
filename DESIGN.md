@@ -573,6 +573,41 @@ was served, ruling out a test-fixture mixup) — dark backdrop now
 renders properly dark with no grey box, bright backdrop still fully
 legible. Typecheck/lint/build clean.
 
+### Watch-history backfill was silently capped at one page
+
+A side-by-side comparison against a reference app (Scrob) with the
+same real Plex library showed most of the catalog marked unwatched in
+Reeler despite actually being watched — only a handful of the most
+recently-watched titles came through correctly.
+
+Root cause: `getWatchHistory()` (`src/lib/server/plex/client.ts`) hit
+`/status/sessions/history/all` with no pagination params at all, and
+`backfillWatchHistory()` (`src/lib/server/sync/history.ts`) only ever
+made that one request. Unlike `/library/sections/.../all` — which Plex
+Media Server returns in full, unpaginated, so library sync was never
+affected — `/status/sessions/history/all` is a capped recent-activity
+feed. Omitting `X-Plex-Container-Start`/`Size` gets Plex's small
+default page of the _most recent_ entries, sorted by `viewedAt`
+descending, with everything older silently dropped. That's exactly the
+pattern in the screenshots: a few recently-watched titles synced
+correctly, the rest of a long-since-watched back catalog never did.
+
+Fixed by having `getWatchHistory()` accept `containerStart`/
+`containerSize`, and `backfillWatchHistory()` loop through pages (200
+at a time) until Plex returns a page shorter than the page size,
+accumulating results across all of them. Confirmed
+`backfillWatchHistory` is the only caller of `getWatchHistory` in the
+codebase, so this fixes every path that pulls history: initial
+backfill, the dashboard's manual sync trigger, and the polling
+backstop.
+
+Verified with a mock Plex server serving 250 history entries (more
+than one page) — confirmed via the mock's request log that the real
+app made two requests (`start=0 size=200`, then `start=200 size=200`)
+and all 250 rows landed in `watch_history`, not just the first 200.
+Re-ran the same sync a second time to confirm it stays idempotent (row
+count unchanged, no duplicates). Typecheck/lint/build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

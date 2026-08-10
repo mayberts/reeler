@@ -46,11 +46,26 @@ export function getMetadata(ratingKey: string) {
  * Watch history, optionally filtered to a single Plex Home user (`accountId`) and/or
  * since a given unix timestamp. Used both for initial backfill and as the polling
  * backstop that reconciles anything a missed webhook would otherwise lose.
+ *
+ * Unlike `/library/sections/.../all` (which Plex returns in full, unpaginated),
+ * `/status/sessions/history/all` is a capped recent-activity feed — omitting
+ * `X-Plex-Container-Start`/`Size` gets Plex's small default page instead of the whole
+ * history. Callers that want everything must page through via `containerStart`/
+ * `containerSize` and keep going using the returned `size`/`totalSize`.
  */
-export function getWatchHistory(options: { accountId?: string; since?: number } = {}) {
+export function getWatchHistory(
+	options: {
+		accountId?: string;
+		since?: number;
+		containerStart?: number;
+		containerSize?: number;
+	} = {}
+) {
 	const params: Record<string, string> = {};
 	if (options.accountId) params.accountID = options.accountId;
 	if (options.since) params['viewedAt>'] = String(options.since);
+	params['X-Plex-Container-Start'] = String(options.containerStart ?? 0);
+	params['X-Plex-Container-Size'] = String(options.containerSize ?? 200);
 	return plexFetch<PlexMetadataResponse>('/status/sessions/history/all', params);
 }
 
@@ -129,6 +144,11 @@ export interface PlexMetadataItem {
 export interface PlexMetadataResponse {
 	MediaContainer: {
 		Metadata?: PlexMetadataItem[];
+		// Present on paginated endpoints (e.g. history) — `size` is how many entries
+		// this response page holds, `totalSize` is the full result count across all
+		// pages. Absent on endpoints that always return everything in one shot.
+		size?: number;
+		totalSize?: number;
 	};
 }
 
