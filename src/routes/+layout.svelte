@@ -32,7 +32,16 @@
 
 <div class="app" style="--accent: {accent.hex}; --accent-ink: {accent.ink};">
 	<header>
-		<a class="brand" href={resolve('/')}>Reeler</a>
+		<a class="brand" href={resolve('/')}>
+			<svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
+				<rect x="6" y="6" width="88" height="88" rx="22" fill={accent.hex} />
+				<path d="M30 27 L30 73 L60 50 Z" fill={accent.ink} />
+				<rect x="64" y="40" width="6" height="20" rx="3" fill={accent.ink} />
+				<rect x="74" y="33" width="6" height="34" rx="3" fill={accent.ink} />
+				<rect x="84" y="43" width="6" height="14" rx="3" fill={accent.ink} />
+			</svg>
+			Reeler
+		</a>
 		{#if data.user}
 			<nav>
 				{#each navLinks as link (link.href)}
