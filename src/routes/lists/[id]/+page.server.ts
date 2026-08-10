@@ -2,7 +2,13 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { like } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { mediaItems } from '$lib/server/db/schema';
-import { getListDetail, addListItem, removeListItem, deleteList } from '$lib/server/lists';
+import {
+	getListDetail,
+	addListItem,
+	removeListItem,
+	deleteList,
+	getOwnedLists
+} from '$lib/server/lists';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
@@ -12,19 +18,23 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	if (!list) error(404, 'List not found');
 
 	const query = url.searchParams.get('q')?.trim() ?? '';
-	const searchResults = query
-		? await db.query.mediaItems.findMany({
-				where: like(mediaItems.title, `%${query}%`),
-				orderBy: (fields, { asc }) => asc(fields.title),
-				limit: 20
-			})
-		: [];
+	const [searchResults, myLists] = await Promise.all([
+		query
+			? db.query.mediaItems.findMany({
+					where: like(mediaItems.title, `%${query}%`),
+					orderBy: (fields, { asc }) => asc(fields.title),
+					limit: 20
+				})
+			: Promise.resolve([]),
+		getOwnedLists(locals.user.id)
+	]);
 
 	return {
 		list,
 		query,
 		searchResults,
-		isOwner: list.ownerId === locals.user.id
+		isOwner: list.ownerId === locals.user.id,
+		myLists
 	};
 };
 

@@ -4,23 +4,27 @@ import { db } from '$lib/server/db';
 import { watchHistory, mediaItems, type MediaType } from '$lib/server/db/schema';
 import { searchTmdb, getTmdbDetails } from '$lib/server/tmdb/client';
 import { getTmdbApiKey } from '$lib/server/tmdb/config';
+import { getOwnedLists } from '$lib/server/lists';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) error(401, 'Not authenticated');
 	const user = locals.user;
 
-	const history = await db.query.watchHistory.findMany({
-		where: eq(watchHistory.userId, user.id),
-		orderBy: desc(watchHistory.watchedAt),
-		limit: 200,
-		with: { mediaItem: true }
-	});
+	const [history, myLists] = await Promise.all([
+		db.query.watchHistory.findMany({
+			where: eq(watchHistory.userId, user.id),
+			orderBy: desc(watchHistory.watchedAt),
+			limit: 200,
+			with: { mediaItem: true }
+		}),
+		getOwnedLists(user.id)
+	]);
 
 	const logQuery = url.searchParams.get('logQuery')?.trim() ?? '';
 	const logResults = logQuery ? await searchTmdb(logQuery) : [];
 
-	return { history, logQuery, logResults, tmdbEnabled: getTmdbApiKey() !== null };
+	return { history, logQuery, logResults, tmdbEnabled: getTmdbApiKey() !== null, myLists };
 };
 
 export const actions: Actions = {

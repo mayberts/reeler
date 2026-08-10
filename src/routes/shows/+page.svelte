@@ -11,4 +11,10 @@
 	search={data.search}
 	sort={data.sort}
 	emptyText="No shows synced yet — run a sync from the dashboard."
+	genres={data.genres}
+	watched={data.watched}
+	availableGenres={data.availableGenres}
+	page={data.page}
+	totalPages={data.totalPages}
+	myLists={data.myLists}
 />

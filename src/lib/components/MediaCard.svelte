@@ -1,8 +1,13 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 
+	interface ListOption {
+		id: string;
+		name: string;
+	}
+
 	interface Props {
-		/** Required to show artwork via the poster proxy (`hasArtwork`) and to link to the detail page; optional if `posterUrl` is given instead (e.g. a not-yet-logged TMDb search result, which has no detail page yet). */
+		/** Required to show artwork via the poster proxy (`hasArtwork`), to link to the detail page, and to power the action bar; optional if `posterUrl` is given instead (e.g. a not-yet-logged TMDb search result, which has no detail page or actions yet). */
 		id?: string;
 		title: string;
 		year?: number | null;
@@ -11,12 +16,14 @@
 		/** Overrides `hasArtwork`/`id`: a public URL to use directly (e.g. a not-yet-logged TMDb search result). */
 		posterUrl?: string | null;
 		meta?: string;
-		/** Shows a small "seen" checkmark badge over the poster — used by the browse-grid pages. */
+		/** Initial watched state — the action bar takes over from here with optimistic updates. */
 		watched?: boolean;
 		/** Square (1:1) artwork instead of the default 2:3 poster — album covers, not posters. */
 		square?: boolean;
 		/** Small badge in the info footer — pass on grids that mix media types (dashboard, history, ratings, lists). */
 		type?: string;
+		/** Owned lists this user can add the item to. Omit/empty hides the Lists action. */
+		myLists?: ListOption[];
 	}
 
 	let {
@@ -26,39 +33,167 @@
 		hasArtwork = false,
 		posterUrl = null,
 		meta,
-		watched = false,
+		watched: initialWatched = false,
 		square = false,
-		type
+		type,
+		myLists = []
 	}: Props = $props();
 
 	const imgSrc = $derived(posterUrl ?? (hasArtwork && id ? `/api/media/${id}/poster` : null));
+	const detailHref = $derived(id ? resolve('/media/[id]', { id }) : null);
+
+	let watched = $state(initialWatched);
+	let watchPending = $state(false);
+	let listOpen = $state(false);
+	let listPending = $state(false);
+	let listDone = $state(false);
+
+	async function markWatched() {
+		if (!id || watchPending) return;
+		watchPending = true;
+		try {
+			const res = await fetch(`/api/media/${id}/watch`, { method: 'POST' });
+			if (res.ok) watched = true;
+		} finally {
+			watchPending = false;
+		}
+	}
+
+	/** Focuses the picker and pops the native dropdown open as soon as it's rendered. */
+	function autoOpen(node: HTMLSelectElement) {
+		node.focus();
+		node.showPicker?.();
+	}
+
+	async function addToList(event: Event) {
+		const select = event.currentTarget as HTMLSelectElement;
+		const listId = select.value;
+		if (!id || !listId || listPending) return;
+		listPending = true;
+		try {
+			const res = await fetch(`/api/media/${id}/lists`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ listId })
+			});
+			if (res.ok) {
+				listDone = true;
+				listOpen = false;
+				select.value = '';
+				setTimeout(() => (listDone = false), 1500);
+			}
+		} finally {
+			listPending = false;
+		}
+	}
 </script>
 
-{#snippet content()}
-	<div class="poster" class:square>
-		{#if imgSrc}
-			<img src={imgSrc} alt="" loading="lazy" />
-		{:else}
-			<div class="placeholder" aria-hidden="true">{title.charAt(0).toUpperCase()}</div>
-		{/if}
-		{#if watched}
-			<span class="watched-badge" title="Watched">✓</span>
-		{/if}
-	</div>
-	<div class="info">
-		<span class="title">{title}</span>
-		<div class="info-row">
-			<span class="sub">{year ?? ''}{year && meta ? ' · ' : ''}{meta ?? ''}</span>
-			{#if type}<span class="type-badge">{type}</span>{/if}
-		</div>
-	</div>
-{/snippet}
+<div class="card">
+	{#if detailHref}
+		<a class="poster-link" href={detailHref}>
+			<div class="poster" class:square>
+				{#if imgSrc}
+					<img src={imgSrc} alt="" loading="lazy" />
+				{:else}
+					<div class="placeholder" aria-hidden="true">{title.charAt(0).toUpperCase()}</div>
+				{/if}
+			</div>
+		</a>
 
-{#if id}
-	<a class="card" href={resolve('/media/[id]', { id })}>{@render content()}</a>
-{:else}
-	<div class="card">{@render content()}</div>
-{/if}
+		<div class="action-bar">
+			<div class="action watched" class:active={watched}>
+				<button
+					type="button"
+					disabled={watchPending}
+					onclick={markWatched}
+					title={watched ? 'Watched' : 'Mark as watched'}
+				>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle
+							cx="12"
+							cy="12"
+							r="3"
+							fill={watched ? 'currentColor' : 'none'}
+						/></svg
+					>
+					<span>Watched</span>
+				</button>
+			</div>
+
+			{#if myLists.length > 0}
+				<div class="action list" class:active={listDone}>
+					{#if listOpen}
+						<select
+							use:autoOpen
+							disabled={listPending}
+							onchange={addToList}
+							onblur={() => (listOpen = false)}
+						>
+							<option value="">Choose a list…</option>
+							{#each myLists as list (list.id)}
+								<option value={list.id}>{list.name}</option>
+							{/each}
+						</select>
+					{:else}
+						<button type="button" onclick={() => (listOpen = true)} title="Add to list">
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line
+									x1="8"
+									y1="18"
+									x2="21"
+									y2="18"
+								/><line x1="3" y1="6" x2="3.01" y2="6" /><line
+									x1="3"
+									y1="12"
+									x2="3.01"
+									y2="12"
+								/><line x1="3" y1="18" x2="3.01" y2="18" /></svg
+							>
+							<span>{listDone ? 'Added' : 'Lists'}</span>
+						</button>
+					{/if}
+				</div>
+			{/if}
+		</div>
+
+		<a class="info-link" href={detailHref}>
+			<div class="info">
+				<span class="title">{title}</span>
+				<div class="info-row">
+					<span class="sub">{year ?? ''}{year && meta ? ' · ' : ''}{meta ?? ''}</span>
+					{#if type}<span class="type-badge">{type}</span>{/if}
+				</div>
+			</div>
+		</a>
+	{:else}
+		<div class="poster" class:square>
+			{#if imgSrc}
+				<img src={imgSrc} alt="" loading="lazy" />
+			{:else}
+				<div class="placeholder" aria-hidden="true">{title.charAt(0).toUpperCase()}</div>
+			{/if}
+		</div>
+		<div class="info">
+			<span class="title">{title}</span>
+			<div class="info-row">
+				<span class="sub">{year ?? ''}{year && meta ? ' · ' : ''}{meta ?? ''}</span>
+				{#if type}<span class="type-badge">{type}</span>{/if}
+			</div>
+		</div>
+	{/if}
+</div>
 
 <style>
 	.card {
@@ -69,20 +204,22 @@
 		overflow: hidden;
 		background: var(--surface-raised);
 		border: 1px solid var(--border);
-		color: inherit;
-		text-decoration: none;
 		transition:
 			border-color 0.2s ease,
 			box-shadow 0.2s ease,
 			transform 0.2s ease;
 	}
-	a.card:hover {
+	.card:has(.poster-link:hover),
+	.card:has(.info-link:hover) {
 		border-color: var(--accent);
 		box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.45);
 		transform: translateY(-3px);
 	}
-	a.card:active {
-		transform: scale(0.97);
+	.poster-link,
+	.info-link {
+		display: block;
+		color: inherit;
+		text-decoration: none;
 	}
 	.poster {
 		position: relative;
@@ -100,24 +237,8 @@
 		display: block;
 		transition: transform 0.4s ease;
 	}
-	a.card:hover .poster img {
+	.poster-link:hover .poster img {
 		transform: scale(1.06);
-	}
-	.watched-badge {
-		position: absolute;
-		top: 0.4rem;
-		right: 0.4rem;
-		width: 1.4rem;
-		height: 1.4rem;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 0.75rem;
-		font-weight: 700;
-		border-radius: 50%;
-		background: var(--success);
-		color: var(--accent-ink);
-		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 	}
 	.placeholder {
 		width: 100%;
@@ -128,6 +249,65 @@
 		font-size: 2rem;
 		font-weight: 600;
 		opacity: 0.35;
+	}
+	.action-bar {
+		position: relative;
+		display: grid;
+		grid-auto-flow: column;
+		grid-auto-columns: 1fr;
+		border-top: 1px solid var(--border);
+		border-bottom: 1px solid var(--border);
+	}
+	.action {
+		position: relative;
+		border-right: 1px solid var(--border);
+	}
+	.action:last-child {
+		border-right: none;
+	}
+	.action button,
+	.action select {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.2rem;
+		padding: 0.4rem 0.3rem;
+		background: transparent;
+		border: none;
+		border-radius: 0;
+		color: var(--ink-muted);
+		font-size: 0.6rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		cursor: pointer;
+	}
+	.action select {
+		font-size: 0.7rem;
+		text-transform: none;
+		letter-spacing: normal;
+	}
+	.action button svg {
+		width: 0.9rem;
+		height: 0.9rem;
+	}
+	.action button:disabled,
+	.action select:disabled {
+		opacity: 0.6;
+		cursor: default;
+	}
+	.action.watched button:hover:not(:disabled),
+	.action.watched.active button {
+		background: var(--success-bg);
+		color: var(--success);
+	}
+	.action.list button:hover:not(:disabled),
+	.action.list.active button {
+		background: var(--list-bg);
+		color: var(--list-color);
 	}
 	.info {
 		display: flex;

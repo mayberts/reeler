@@ -32,6 +32,7 @@
 							year={item.year}
 							hasArtwork={!!(item.plexThumb || item.artworkUrl)}
 							type={item.type}
+							myLists={data.myLists}
 						/>
 						<form method="POST" action="?/rate" use:enhance>
 							<input type="hidden" name="mediaItemId" value={item.id} />
@@ -59,6 +60,7 @@
 						year={rating.mediaItem.year}
 						hasArtwork={!!(rating.mediaItem.plexThumb || rating.mediaItem.artworkUrl)}
 						type={rating.mediaItem.type}
+						myLists={data.myLists}
 					/>
 					<form method="POST" action="?/rate" use:enhance>
 						<input type="hidden" name="mediaItemId" value={rating.mediaItemId} />

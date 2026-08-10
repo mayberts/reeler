@@ -3,28 +3,32 @@ import { eq, like } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { ratings, mediaItems } from '$lib/server/db/schema';
 import { setRating } from '$lib/server/ratings';
+import { getOwnedLists } from '$lib/server/lists';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) error(401, 'Not authenticated');
 	const user = locals.user;
 
-	const myRatings = await db.query.ratings.findMany({
-		where: eq(ratings.userId, user.id),
-		orderBy: (fields, { desc }) => desc(fields.updatedAt),
-		with: { mediaItem: true }
-	});
-
 	const query = url.searchParams.get('q')?.trim() ?? '';
-	const searchResults = query
-		? await db.query.mediaItems.findMany({
-				where: like(mediaItems.title, `%${query}%`),
-				orderBy: (fields, { asc }) => asc(fields.title),
-				limit: 20
-			})
-		: [];
 
-	return { ratings: myRatings, query, searchResults };
+	const [myRatings, searchResults, myLists] = await Promise.all([
+		db.query.ratings.findMany({
+			where: eq(ratings.userId, user.id),
+			orderBy: (fields, { desc }) => desc(fields.updatedAt),
+			with: { mediaItem: true }
+		}),
+		query
+			? db.query.mediaItems.findMany({
+					where: like(mediaItems.title, `%${query}%`),
+					orderBy: (fields, { asc }) => asc(fields.title),
+					limit: 20
+				})
+			: Promise.resolve([]),
+		getOwnedLists(user.id)
+	]);
+
+	return { ratings: myRatings, query, searchResults, myLists };
 };
 
 export const actions: Actions = {

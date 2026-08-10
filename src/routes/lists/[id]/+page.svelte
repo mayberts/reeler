@@ -33,6 +33,7 @@
 					year={item.mediaItem.year}
 					hasArtwork={!!(item.mediaItem.plexThumb || item.mediaItem.artworkUrl)}
 					type={item.mediaItem.type}
+					myLists={data.myLists}
 				/>
 				{#if data.isOwner}
 					<form method="POST" action="?/removeItem" use:enhance>
@@ -65,6 +66,7 @@
 							year={item.year}
 							hasArtwork={!!(item.plexThumb || item.artworkUrl)}
 							type={item.type}
+							myLists={data.myLists}
 						/>
 						<form method="POST" action="?/addItem" use:enhance>
 							<input type="hidden" name="mediaItemId" value={item.id} />

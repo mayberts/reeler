@@ -245,6 +245,53 @@ Verified visually with Playwright screenshots (dashboard, `/movies`,
 and a detail page, both color schemes) against seeded sample data,
 alongside the usual typecheck/lint/build pass.
 
+### UI restyle, round two: closer to a component port
+
+The first pass (above) was a "look and feel" restyle — palette, card
+styling, typography — that kept Reeler's own page structure. Told this
+undersold what "copy the UI from Scrob" meant, so this round ports the
+structural pieces that were still missing, each adapted to what Reeler
+actually has (no Jellyfin/Emby/Nuvio/Stremio, no Trakt/Simkl/MDBList,
+no TMDb "Explore" discovery browsing — Scrob components tied to those
+don't have a Reeler equivalent to port to):
+
+- **Persistent per-card action bar.** `MediaCard` now has an always-visible
+  Watched/Lists button row under the poster (Scrob's `CardActionBar`),
+  not just a corner badge. Clicking posts to two new JSON endpoints —
+  `POST /api/media/[id]/watch` and `POST /api/media/[id]/lists` — with
+  optimistic client-side state, so a card updates without navigating to
+  the detail page. No "Collected" button: Reeler has no concept
+  separate from "is it in the library," so there's nothing for it to
+  toggle. No "unwatch": Reeler's `watch_history` is an append-only log
+  mirroring Plex's own scrobble history, not a boolean flag, so
+  "Watched" always adds a manual watch rather than toggling one off —
+  same one-way semantics the detail page's button already had.
+- **Real filters and pagination.** `browseMediaByType()` now takes
+  `genres`, `watched`, and `page`, backed by real `WHERE`/`LIMIT`/`OFFSET`
+  clauses rather than loading everything. The filter panel is a native
+  `<details>` disclosure (checkboxes for genre, radios for watched
+  status) instead of Scrob's animated JS modal — same functionality,
+  without a hand-rolled overlay/animation system. Genre options are
+  derived from actual data (`listAvailableGenres()`) rather than a
+  hardcoded TMDb genre list, since Reeler's genres come from whatever
+  tags exist in the user's own Plex library. Pagination buttons live
+  inside the same `<form method="GET">` as the filters (native
+  `name="page" value="N"` submit buttons) rather than `<a href>` links —
+  matching this codebase's existing convention of GET forms for
+  parameterized navigation, and sidestepping the need to hand-build
+  query strings in JS.
+- **Deferred, not done:** the History/List row-card reskins
+  (`HistoryCard`/`ListCard`) and a mobile bottom nav bar. Flagged as
+  still open rather than silently skipped.
+
+Verified with a full Playwright pass against seeded data (35 movies,
+mixed genres, a mix of watched/unwatched, a real list): genre filter
+narrowed 35→9 results correctly, "Clear all" reset it, pagination
+advanced pages via the query string, and clicking a card's Watched/Lists
+buttons produced real `watch_history`/`list_items` rows — confirmed by
+querying the DB directly after the clicks, not just checking the UI
+state.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

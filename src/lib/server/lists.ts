@@ -11,6 +11,15 @@ export async function getVisibleLists(userId: string) {
 	});
 }
 
+/** Lists this user owns (can add items to) — id/name only, for the card action bar's list picker. */
+export async function getOwnedLists(userId: string) {
+	return db.query.lists.findMany({
+		where: eq(lists.ownerId, userId),
+		orderBy: (fields, { asc }) => asc(fields.name),
+		columns: { id: true, name: true }
+	});
+}
+
 /** A single list with its items, or null if it doesn't exist or isn't visible to this user. */
 export async function getListDetail(listId: string, userId: string) {
 	const list = await db.query.lists.findFirst({

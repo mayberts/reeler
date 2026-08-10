@@ -12,4 +12,10 @@
 	sort={data.sort}
 	emptyText="No albums yet — albums are added automatically the first time you play a track."
 	square
+	genres={data.genres}
+	watched={data.watched}
+	availableGenres={data.availableGenres}
+	page={data.page}
+	totalPages={data.totalPages}
+	myLists={data.myLists}
 />

@@ -21,6 +21,8 @@
 				hasArtwork={!!(entry.mediaItem.plexThumb || entry.mediaItem.artworkUrl)}
 				meta="{entry.source} · {entry.watchedAt.toLocaleDateString()}"
 				type={entry.mediaItem.type}
+				watched
+				myLists={data.myLists}
 			/>
 		{/each}
 	</div>
