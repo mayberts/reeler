@@ -9,6 +9,9 @@
 		plexThumb: string | null;
 		artworkUrl: string | null;
 		watched: boolean;
+		/** Real fraction watched (0-1) for shows, computed from actual episode watches —
+		 *  null for types where "watched" is just the item's own boolean (movies, albums). */
+		watchProgress?: number | null;
 	}
 
 	interface ListOption {
@@ -194,6 +197,7 @@
 				year={item.year}
 				hasArtwork={!!(item.plexThumb || item.artworkUrl)}
 				watched={item.watched}
+				watchProgress={item.watchProgress ?? null}
 				{showWatched}
 				{square}
 				{myLists}
