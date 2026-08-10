@@ -85,16 +85,18 @@
 				{/if}
 
 				<div class="meta-row">
-					{#if item.year}<span>{item.year}</span>{/if}
-					{#if runtime}<span>{runtime}</span>{/if}
+					{#if item.year}<span class="badge">{item.year}</span>{/if}
+					{#if runtime}<span class="badge">{runtime}</span>{/if}
 					{#if isShow && data.seasons.length > 0}
-						<span>{data.seasons.length} Season{data.seasons.length === 1 ? '' : 's'}</span>
+						<span class="badge"
+							>{data.seasons.length} Season{data.seasons.length === 1 ? '' : 's'}</span
+						>
 					{/if}
 					{#if item.criticRating !== null}
 						<span class="badge rating-badge">★ {item.criticRating.toFixed(1)}</span>
 					{/if}
 					{#if item.contentRating}<span class="badge">{item.contentRating}</span>{/if}
-					{#if item.studio}<span>{item.studio}</span>{/if}
+					{#if item.studio}<span class="badge">{item.studio}</span>{/if}
 					{#if data.myRating !== null}<span class="badge rating">★ {data.myRating}/10</span>{/if}
 				</div>
 
@@ -286,21 +288,46 @@
 	.scrim {
 		position: absolute;
 		inset: 0;
-		background: linear-gradient(
-			180deg,
-			var(--surface) 0%,
-			rgba(0, 0, 0, 0.55) 40%,
-			var(--surface) 100%
-		);
+		/* Two layers: a horizontal fade (opaque behind the poster/text column on the
+		   left, fading out toward the right so the backdrop still shows through there)
+		   plus a vertical fade that only blends the very top/bottom edges into the page
+		   background — it holds a flat, solid plateau across the middle (where the
+		   title/meta-row/action-bar all actually sit) rather than dipping back toward
+		   transparent there, since a dip at exactly that height was defeating the
+		   horizontal layer's contrast on bright/detailed backdrop images. */
+		background:
+			linear-gradient(
+				90deg,
+				rgba(0, 0, 0, 0.92) 0%,
+				rgba(0, 0, 0, 0.92) 24%,
+				rgba(0, 0, 0, 0.5) 55%,
+				transparent 88%
+			),
+			linear-gradient(
+				180deg,
+				var(--surface) 0%,
+				rgba(0, 0, 0, 0.6) 14%,
+				rgba(0, 0, 0, 0.6) 86%,
+				var(--surface) 100%
+			);
 		z-index: 1;
 	}
 	:root:not([data-theme='dark']) .scrim {
-		background: linear-gradient(
-			180deg,
-			var(--surface) 0%,
-			rgba(255, 255, 255, 0.35) 40%,
-			var(--surface) 100%
-		);
+		background:
+			linear-gradient(
+				90deg,
+				rgba(255, 255, 255, 0.95) 0%,
+				rgba(255, 255, 255, 0.95) 24%,
+				rgba(255, 255, 255, 0.55) 55%,
+				transparent 88%
+			),
+			linear-gradient(
+				180deg,
+				var(--surface) 0%,
+				rgba(255, 255, 255, 0.55) 14%,
+				rgba(255, 255, 255, 0.55) 86%,
+				var(--surface) 100%
+			);
 	}
 	.hero-inner {
 		position: relative;
@@ -349,13 +376,26 @@
 	.hero-text {
 		flex: 1;
 		min-width: 0;
+		/* The scrim gradient alone can't guarantee contrast against every possible
+		   backdrop image — a bright or busy one can still show through enough to make
+		   small badge/tagline text hard to read. A translucent panel behind the actual
+		   text content is a hard floor under that: legible regardless of what's behind
+		   it, on top of the gradient for the fade-to-image look further right/down. */
+		background: light-dark(rgba(255, 255, 255, 0.4), rgba(0, 0, 0, 0.4));
+		border-radius: var(--radius);
+		padding: 1rem 1.25rem;
+		margin: -1rem -1.25rem;
 	}
 	.hero-text h1 {
 		margin-bottom: 0.35rem;
+		/* Belt-and-suspenders alongside the scrim — a bright/detailed patch of the
+		   backdrop image directly behind the title shouldn't be able to wash it out. */
+		text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
 	}
 	.subtitle {
 		color: var(--ink-secondary);
 		margin: 0 0 0.75rem;
+		text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
 	}
 	.tagline {
 		font-style: italic;
@@ -374,6 +414,13 @@
 		border-radius: var(--radius-sm);
 		padding: 0.1rem 0.5rem;
 		font-size: 0.8rem;
+	}
+	.meta-row .badge {
+		/* Own background rather than relying on the scrim alone — keeps small badge
+		   text legible even over a bright/detailed patch of the backdrop image. */
+		background: light-dark(rgba(255, 255, 255, 0.82), rgba(0, 0, 0, 0.5));
+		border-color: light-dark(rgba(0, 0, 0, 0.15), rgba(255, 255, 255, 0.18));
+		white-space: nowrap;
 	}
 	.badge.rating {
 		color: var(--accent);
@@ -471,13 +518,14 @@
 		margin-bottom: 1.1rem;
 	}
 	.ext-badge {
-		border: 1px solid var(--border-strong);
+		border: 1px solid light-dark(rgba(0, 0, 0, 0.15), rgba(255, 255, 255, 0.18));
 		border-radius: var(--radius-sm);
 		padding: 0.2rem 0.6rem;
 		font-size: 0.75rem;
 		font-weight: 700;
 		text-decoration: none;
 		color: var(--ink-secondary);
+		background: light-dark(rgba(255, 255, 255, 0.82), rgba(0, 0, 0, 0.5));
 	}
 	.ext-badge:hover {
 		border-color: var(--accent);

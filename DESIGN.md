@@ -495,6 +495,45 @@ Unraid array, where each fsync this eliminates costs more than it does
 here. Confirmed via direct DB query that `journal_mode` reports `wal`
 and all 302 rows land correctly.
 
+### Detail page hero: contrast fix
+
+A real screenshot showed the hero's title/tagline/meta-row badges
+nearly unreadable against a bright, detailed backdrop image — a bug,
+not a scope gap. Root cause was two-fold:
+
+- **Half the meta-row items had no chip background.** Year, runtime,
+  season count, and studio were plain colored text with nothing behind
+  them; only content rating and the two rating badges used the bordered
+  `.badge` chip look. Fixed by giving every meta-row item the same
+  chip treatment.
+- **The scrim only darkened top/bottom, not left-to-right.** A
+  vertical-only gradient can't guarantee contrast at the exact height
+  text happens to sit at — a bright patch of the image right behind the
+  title reads straight through a modest vertical fade. Added a
+  horizontal component (opaque behind the poster/text column, fading
+  out toward the right so the image still shows through there) and
+  fixed the vertical gradient's shape, which had been dipping back
+  toward transparent at almost exactly the height the title/meta-row
+  sit — a self-inflicted second problem on top of the missing
+  horizontal darkening.
+
+Even after both fixes, an especially bright/busy backdrop image could
+still marginally wash out the title and tagline — gradient tuning alone
+can't guarantee contrast against an arbitrary image. Closed the gap for
+good with a translucent panel behind the actual text content itself
+(title through the action bar), on top of the gradient rather than
+instead of it, so legibility no longer depends on guessing what a given
+show's backdrop art looks like. `.badge`/`.ext-badge` also got their
+own solid backgrounds for the same reason, and the title/tagline got a
+`text-shadow` as a second line of defense.
+
+Verified by generating a deliberately worst-case synthetic backdrop
+(a bright, busy diagonal-stripe pattern — harder to read against than
+any real cinematic still) and screenshotting the real fix against it in
+both themes: title, tagline, every meta-row badge, external-link
+badges, and the action bar all legible. Confirmed the season/episode
+pages (which share this component) still render without error.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
