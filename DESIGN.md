@@ -860,6 +860,43 @@ and logged the same result a second time to confirm find-or-create
 idempotency (one `media_items` row, two `watch_history` rows) — the
 same guarantee the TMDb path already had. Typecheck/lint/build clean.
 
+### Settings page: env-sourced fields looked saved when they weren't
+
+A user removed their real Plex/TMDB values from `.env` after setting
+up the Settings page, believing the page's mere existence meant those
+values were already stored in the database — they weren't, since
+nothing gets written to the DB until that card's "Save Changes" is
+actually clicked. Every field was gone with no way back short of
+re-entering the credentials from scratch.
+
+Root cause was the hint copy, not the save logic itself (already
+correct — see the stage 1 entry above: it only ever writes on an
+explicit save). Each field's hint just named which env var it was
+using ("Currently set via the PLEX_SERVER_URL environment variable"),
+with no indication that meant "not saved here" — indistinguishable at
+a glance from a hint on a field that _had_ been saved. The two states
+(env-sourced-and-fragile vs. db-sourced-and-durable) look identical in
+the input itself, since both just show a value.
+
+Rewrote the hint to say so explicitly ("...not saved in the database
+yet. Click Save Changes to store it here so it survives
+PLEX_SERVER_URL being removed.") and gave it a distinct amber/warning
+color (`SecretField`'s new `hintWarn` prop, plus the equivalent on the
+two plain, non-secret fields) so it doesn't read the same as an
+ordinary informational note at a skim. Considered auto-adopting
+env-sourced values into the DB on page load instead, so this class of
+mistake couldn't happen at all — rejected: a `load` (GET) silently
+writing is a real footgun of its own, and some deployments
+legitimately want to keep `.env` as the actual source of truth
+(GitOps-style) without the Settings page quietly forking that state
+into the DB just by being viewed.
+
+Verified via a real browser: seeded a DB with real-looking env vars
+and no DB-stored settings, confirmed every env-sourced field now shows
+the amber warning with the corrected copy, and confirmed a genuinely
+unset field still shows the original muted, non-alarming hint (the two
+states are visually distinct, not just textually). Typecheck/lint/build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

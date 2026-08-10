@@ -24,12 +24,40 @@
 			: null
 	);
 
-	function sourceHint(source: 'db' | 'env' | 'unset', envVar: string): string {
-		if (source === 'env') return `Currently set via the ${envVar} environment variable.`;
-		if (source === 'unset')
-			return `Not set. Can also be set via the ${envVar} environment variable.`;
-		return '';
+	/** `warn: true` means the field is only working because of an env var right now —
+	 *  nothing has actually been saved to the database, so removing that env var (or
+	 *  moving to a deploy that doesn't set it) will blank this out with no way back
+	 *  short of re-entering it here. Surfaced as a distinctly-colored hint, not just
+	 *  the same muted note as an actually-empty field, since those two states look
+	 *  identical in the input itself (both show the value, or lack of one) but have
+	 *  very different consequences. */
+	function sourceHint(
+		source: 'db' | 'env' | 'unset',
+		envVar: string
+	): { text: string; warn: boolean } {
+		if (source === 'env') {
+			return {
+				text: `Using the ${envVar} environment variable — not saved in the database yet. Click Save Changes to store it here so it survives ${envVar} being removed.`,
+				warn: true
+			};
+		}
+		if (source === 'unset') {
+			return {
+				text: `Not set. Can also be set via the ${envVar} environment variable.`,
+				warn: false
+			};
+		}
+		return { text: '', warn: false };
 	}
+
+	const serverUrlHint = $derived(sourceHint(data.source.plexServerUrl, 'PLEX_SERVER_URL'));
+	const plexTokenHint = $derived(sourceHint(data.source.plexToken, 'PLEX_TOKEN'));
+	const webhookHint = $derived(sourceHint(data.source.plexWebhookToken, 'PLEX_WEBHOOK_TOKEN'));
+	const clientIdHint = $derived(
+		sourceHint(data.source.plexClientIdentifier, 'PLEX_CLIENT_IDENTIFIER')
+	);
+	const tmdbHint = $derived(sourceHint(data.source.tmdbReadAccessToken, 'TMDB_API_KEY'));
+	const tvdbHint = $derived(sourceHint(data.source.tvdbApiKey, 'TVDB_API_KEY'));
 
 	async function testTmdb(token: string) {
 		const res = await fetch('/api/settings/test-tmdb', {
@@ -119,14 +147,17 @@
 				value={data.settings.plexServerUrl ?? ''}
 				placeholder="http://your-plex-server:32400"
 			/>
-			<p class="hint">{sourceHint(data.source.plexServerUrl, 'PLEX_SERVER_URL')}</p>
+			{#if serverUrlHint.text}
+				<p class="hint" class:warn={serverUrlHint.warn}>{serverUrlHint.text}</p>
+			{/if}
 		</div>
 
 		<SecretField
 			label="Plex Token"
 			name="plexToken"
 			value={data.settings.plexToken ?? ''}
-			hint={sourceHint(data.source.plexToken, 'PLEX_TOKEN')}
+			hint={plexTokenHint.text}
+			hintWarn={plexTokenHint.warn}
 			onTest={testPlexToken}
 		/>
 
@@ -134,8 +165,8 @@
 			label="Plex Webhook Token"
 			name="plexWebhookToken"
 			value={data.settings.plexWebhookToken ?? ''}
-			hint={sourceHint(data.source.plexWebhookToken, 'PLEX_WEBHOOK_TOKEN') ||
-				(webhookUrl ? `Webhook URL: ${webhookUrl}` : '')}
+			hint={webhookHint.text || (webhookUrl ? `Webhook URL: ${webhookUrl}` : '')}
+			hintWarn={webhookHint.warn}
 		/>
 
 		<div class="field">
@@ -147,9 +178,9 @@
 				value={data.settings.plexClientIdentifier ?? ''}
 				placeholder="any fixed random string"
 			/>
-			<p class="hint">
-				{sourceHint(data.source.plexClientIdentifier, 'PLEX_CLIENT_IDENTIFIER')}
-			</p>
+			{#if clientIdHint.text}
+				<p class="hint" class:warn={clientIdHint.warn}>{clientIdHint.text}</p>
+			{/if}
 		</div>
 
 		<button type="submit" class="primary">Save Changes</button>
@@ -170,8 +201,9 @@
 			label="TMDB Read Access Token"
 			name="tmdbReadAccessToken"
 			value={data.settings.tmdbReadAccessToken ?? ''}
-			hint={sourceHint(data.source.tmdbReadAccessToken, 'TMDB_API_KEY') ||
+			hint={tmdbHint.text ||
 				'Paste the API Read Access Token (v4) from TMDB Settings → API. Required for movie/TV metadata and manual logging; validated before saving.'}
+			hintWarn={tmdbHint.warn}
 			onTest={testTmdb}
 		/>
 
@@ -179,8 +211,9 @@
 			label="TVDB API Key"
 			name="tvdbApiKey"
 			value={data.settings.tvdbApiKey ?? ''}
-			hint={sourceHint(data.source.tvdbApiKey, 'TVDB_API_KEY') ||
+			hint={tvdbHint.text ||
 				'Required for TVDB-sourced shows (shows not on TMDB). Get your key at thetvdb.com.'}
+			hintWarn={tvdbHint.warn}
 			onTest={testTvdb}
 		/>
 
@@ -259,6 +292,10 @@
 		margin: 0;
 		font-size: 0.78rem;
 		color: var(--ink-muted);
+	}
+	.hint.warn {
+		color: var(--accent);
+		font-weight: 600;
 	}
 	.error {
 		color: var(--danger);
