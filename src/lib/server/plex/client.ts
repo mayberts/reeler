@@ -122,6 +122,8 @@ export interface PlexMetadataItem {
 	parentIndex?: number;
 	/** On a season item, Plex's own episode count for it. */
 	leafCount?: number;
+	/** Air date, `YYYY-MM-DD` — set on episode (and movie) items. */
+	originallyAvailableAt?: string;
 }
 
 export interface PlexMetadataResponse {

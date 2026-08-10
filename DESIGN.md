@@ -369,7 +369,7 @@ needed a new external integration:
 
 - **Seasons pre-sync (new sync capability).** Episodes stay lazy (same
   as before — an episode list is huge and "tracking" is about what's
-  been watched, not mirroring the catalog), but a show's *seasons* are
+  been watched, not mirroring the catalog), but a show's _seasons_ are
   few enough, and useful enough to browse before anything's been
   watched, to pre-sync like the show itself — the same reasoning that
   already applied to albums. `syncLibrary()` now makes a second,
@@ -400,8 +400,8 @@ needed a new external integration:
 
 Building the seasons pre-sync surfaced a real bug via the DB smoke
 test, not just a gap: a season's parent-linking stub upsert (creating/
-finding its parent show mid-sync) was re-upserting the *already fully
-synced* show with stub data, and `tmdbId`/`tvdbId` didn't fall back to
+finding its parent show mid-sync) was re-upserting the _already fully
+synced_ show with stub data, and `tmdbId`/`tvdbId` didn't fall back to
 the existing row the way every other enrichable field already did —
 so a show's external ids were getting silently nulled out the moment
 its seasons synced. Fixed by adding the same `?? existing?.field ??
@@ -415,6 +415,49 @@ via direct DB query that the season pre-sync, parent-linking, and the
 tmdbId/tvdbId fix all work end-to-end, then a Playwright pass over the
 resulting detail page confirming the seasons grid, external link
 badges, critic-rating badge, and studio/content-rating meta all render.
+
+### Season pages: full episode lists
+
+A season page only had a bare poster grid — no way to see what's
+actually in a season without watching something first. Fixed by taking
+the seasons pre-sync one level further:
+
+- **Episodes now pre-sync too**, not just seasons. `syncLibrary()` makes
+  a third per-show-section request (`type: '4'`, the same trick used
+  for seasons/albums) and upserts every episode as its own row —
+  reusing the episode→season parent-linking that already existed for
+  the lazy-creation path (a webhook/history entry for a show that
+  predates its own library sync still works the same way it always
+  did). Tracks are the one thing still lazy-only; a show's episode list
+  is exactly what a "browse this season" view needs up front, the same
+  way seasons themselves already were, but a music library's track
+  list remains too large relative to what's worth mirroring.
+- **New `air_date` column** (Plex's `originallyAvailableAt`), needed to
+  show each episode's air date in its row — nothing else on the detail
+  page used a date-only field before this.
+- **`EpisodeRow` component**: thumbnail, episode number + title, air
+  date, summary, runtime + a "View details" link to the episode's own
+  `/media/[id]` page, a critic-rating badge, and a Watched/Lists action
+  bar (the same optimistic-update pattern `MediaCard` already uses,
+  adapted to a horizontal row instead of a poster card). A season page
+  now loads its episodes plus one bulk query for which of them the
+  signed-in user has already watched — avoiding an N+1 per-episode
+  watched-status lookup.
+- **Not added: a "Collected" toggle.** Scrob's episode cards have one;
+  Reeler has no concept separate from "is it in the library" (true for
+  every pre-synced episode by definition), so there's nothing for it to
+  toggle — same reasoning that already ruled it out for `MediaCard`.
+
+This is a real jump in what gets pre-synced — every episode of every
+show, not just seasons — flagged here rather than silently absorbed
+into "closing a gap," since it changes what a sync actually costs on a
+large library. Verified against a mock Plex server (a season with 2
+episodes, full metadata) confirming via direct DB query that episode
+pre-sync and season-linking work end-to-end, then a Playwright pass
+over the resulting season page confirming the episode list renders
+(titles, air dates, summaries, runtimes, ratings) and that marking an
+episode watched updates that episode's own state without touching the
+season's.
 
 ## Roadmap
 

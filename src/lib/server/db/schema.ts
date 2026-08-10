@@ -80,12 +80,14 @@ export const mediaItems = sqliteTable(
 		/** Set on `season`/`episode` rows — a show's season number, or an episode's within it. */
 		seasonNumber: integer('season_number'),
 		episodeNumber: integer('episode_number'),
-		/** Set on `season` rows — Plex's own episode count for that season, since episodes stay lazy. */
+		/** Set on `season` rows — Plex's own episode count for that season. */
 		episodeCount: integer('episode_count'),
 		/** Network (shows) or studio (movies), from Plex's own `studio` field. */
 		studio: text('studio'),
 		/** Plex's own critic score (0-10), e.g. Rotten Tomatoes — distinct from a user's own rating. */
 		criticRating: real('critic_rating'),
+		/** ISO date string (`YYYY-MM-DD`), from Plex's `originallyAvailableAt` — set on episodes. */
+		airDate: text('air_date'),
 		/** Public poster URL (currently only TMDb, for manually-logged items) — safe to link to directly. */
 		artworkUrl: text('artwork_url'),
 		/**

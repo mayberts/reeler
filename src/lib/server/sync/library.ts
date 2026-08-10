@@ -8,19 +8,21 @@ export interface LibrarySyncResult {
 
 /**
  * Pulls every movie/show/music library section and upserts its top-level items:
- * movies, shows, albums — and, for shows, every season too (unlike episodes and
- * tracks, which stay lazy: an episode/track list is huge and "tracking" is about
- * what's actually been watched/listened to, but a show's *seasons* are few enough,
- * and useful enough to browse before anything's been watched, to pre-sync like the
- * show itself).
+ * movies, shows, albums — and, for shows, every season *and* episode too. Tracks are
+ * the one thing that stays lazy (created from watch history/webhooks, the same way
+ * episodes used to be): a music library's track list is huge relative to what's
+ * actually worth mirroring, but a show's own seasons/episodes are exactly what a
+ * "seasons" browsing view needs to show without waiting for anything to be watched
+ * first — same reasoning that already applied to albums, just one level deeper.
  *
  * Artist-type sections return artists as their direct children, not albums — `type:
  * '9'` asks Plex for a flattened list of every album in the section instead, the same
- * trick `type: '3'` does for seasons (vs. shows) under a show section, and `type: '4'`
- * would do for episodes.
+ * trick `type: '3'`/`type: '4'` do for seasons/episodes (vs. shows) under a show
+ * section.
  *
  * No pagination handling yet — fine for typical library sizes, worth revisiting if a
- * single section exceeds Plex's default response container size.
+ * single section (now including every episode of every show) exceeds Plex's default
+ * response container size.
  */
 export async function syncLibrary(): Promise<LibrarySyncResult> {
 	const { MediaContainer } = await listLibrarySections();
@@ -46,11 +48,12 @@ export async function syncLibrary(): Promise<LibrarySyncResult> {
 		await upsertAll(await listSectionItems(section.key, params));
 
 		// Shows are upserted above (via the empty-params, top-level-item request); seasons
-		// need their own pass since Plex only returns them with an explicit type filter,
-		// same as albums. Doing this after the shows pass means a season's `parentRatingKey`
-		// always resolves to an already-upserted show, not a stub.
+		// and episodes need their own pass each, since Plex only returns them with an
+		// explicit type filter, same as albums. Seasons before episodes means an episode's
+		// `parentRatingKey` always resolves to an already-upserted season, not a stub.
 		if (section.type === 'show') {
 			await upsertAll(await listSectionItems(section.key, { type: '3' }));
+			await upsertAll(await listSectionItems(section.key, { type: '4' }));
 		}
 	}
 

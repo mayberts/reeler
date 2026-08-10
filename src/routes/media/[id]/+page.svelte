@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import EpisodeRow from '$lib/components/EpisodeRow.svelte';
 
 	let { data, form } = $props();
 
 	const item = $derived(data.item);
 	const isMusic = $derived(item.type === 'track' || item.type === 'album');
 	const isShow = $derived(item.type === 'show');
+	const isSeason = $derived(item.type === 'season');
 
 	const posterSrc = $derived(
 		item.plexThumb || item.artworkUrl ? `/api/media/${item.id}/poster` : null
@@ -239,6 +241,26 @@
 					{/if}
 				</div>
 			</a>
+		{/each}
+	</div>
+{/if}
+
+{#if isSeason && data.episodes.length > 0}
+	<h2 class="section-headline">Episodes</h2>
+	<div class="episodes-list">
+		{#each data.episodes as episode (episode.id)}
+			<EpisodeRow
+				id={episode.id}
+				title={episode.title}
+				episodeNumber={episode.episodeNumber}
+				summary={episode.summary}
+				airDate={episode.airDate}
+				runtimeMinutes={episode.runtimeMinutes}
+				criticRating={episode.criticRating}
+				hasArtwork={!!(episode.plexThumb || episode.artworkUrl)}
+				watched={data.watchedEpisodeIds.includes(episode.id)}
+				myLists={data.myLists}
+			/>
 		{/each}
 	</div>
 {/if}
@@ -498,5 +520,11 @@
 	.season-info span {
 		color: var(--ink-muted);
 		font-size: 0.78rem;
+	}
+	.episodes-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		margin: 1rem 0 2rem;
 	}
 </style>

@@ -63,13 +63,16 @@ async function enrichSparseItem(item: PlexMetadataItem): Promise<PlexMetadataIte
  * falling back to external ids, so an item created from a history entry is found again
  * later by a library sync (and vice versa) even before either side has both fields.
  *
- * Shows pre-sync their full season list (see `syncLibrary`), so a season's row usually
- * already exists by the time this runs — but music isn't pre-synced from the library
- * like movies/shows/seasons, since the catalog can be huge and "tracking" is about what's
- * actually been played, not mirroring every track. Album and track items, and episodes,
- * get created lazily here, the first time they show up in watch history or a webhook.
- * Artists aren't modeled as their own row (nothing to "track" about an artist itself); a
- * track's `parentTitle` already carries the artist context via its album.
+ * Shows pre-sync their full season and episode lists (see `syncLibrary`), so an
+ * episode's season row usually already exists by the time this runs — but music isn't
+ * pre-synced from the library like movies/shows/seasons/episodes, since the catalog can
+ * be huge and "tracking" is about what's actually been played, not mirroring every
+ * track. Album and track items get created lazily here, the first time they show up in
+ * watch history or a webhook (this function still handles a lazily-created episode too
+ * — a webhook/history entry for a show not yet library-synced, say — the same way it
+ * always has). Artists aren't modeled as their own row (nothing to "track" about an
+ * artist itself); a track's `parentTitle` already carries the artist context via its
+ * album.
  */
 export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promise<string | null> {
 	const type = PLEX_TYPE_TO_MEDIA_TYPE[rawItem.type];
@@ -131,6 +134,7 @@ export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promis
 			: (existing?.genres ?? null),
 		studio: item.studio ?? existing?.studio ?? null,
 		criticRating: item.rating ?? existing?.criticRating ?? null,
+		airDate: item.originallyAvailableAt ?? existing?.airDate ?? null,
 		// On a season item, `index` is its own number; on an episode, `parentIndex` is its
 		// season's number and `index` is its number within that season.
 		seasonNumber:
