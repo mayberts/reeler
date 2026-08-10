@@ -50,6 +50,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		ratingDistributionRows,
 		collectionRows,
 		topWatched,
+		topListened,
 		topRated,
 		episodeWatchBySeason,
 		movieWatchRows,
@@ -111,7 +112,26 @@ export const load: PageServerLoad = async ({ locals }) => {
 			})
 			.from(watchHistory)
 			.innerJoin(mediaItems, eq(watchHistory.mediaItemId, mediaItems.id))
-			.where(eq(watchHistory.userId, userId))
+			.where(
+				and(eq(watchHistory.userId, userId), inArray(mediaItems.type, ['movie', 'show', 'episode']))
+			)
+			.groupBy(watchHistory.mediaItemId)
+			.orderBy(desc(count()))
+			.limit(5),
+		// Same shape as topWatched, restricted to the audio types — kept as a separate
+		// list rather than one type-agnostic ranking, since "most watched" mixing in
+		// tracks (or vice versa) doesn't mean anything as a single ranking.
+		db
+			.select({
+				mediaItemId: watchHistory.mediaItemId,
+				title: mediaItems.title,
+				year: mediaItems.year,
+				type: mediaItems.type,
+				watchCount: count()
+			})
+			.from(watchHistory)
+			.innerJoin(mediaItems, eq(watchHistory.mediaItemId, mediaItems.id))
+			.where(and(eq(watchHistory.userId, userId), inArray(mediaItems.type, ['track', 'album'])))
 			.groupBy(watchHistory.mediaItemId)
 			.orderBy(desc(count()))
 			.limit(5),
@@ -323,6 +343,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			albums: { watched: listenedAlbumIds.size, total: collectionCount('album') }
 		},
 		topWatched,
+		topListened,
 		topRated
 	};
 };

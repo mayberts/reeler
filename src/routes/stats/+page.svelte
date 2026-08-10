@@ -107,10 +107,15 @@
 		{ label: 'Albums', value: data.collection.albums, color: COLOR_MUSIC }
 	]);
 
-	function watchedDonut(watched: number, total: number) {
+	function progressDonut(
+		completed: number,
+		total: number,
+		completedLabel = 'Watched',
+		remainingLabel = 'Unwatched'
+	) {
 		return [
-			{ label: 'Watched', value: watched, color: COLOR_SUCCESS },
-			{ label: 'Unwatched', value: Math.max(0, total - watched), color: COLOR_NEUTRAL }
+			{ label: completedLabel, value: completed, color: COLOR_SUCCESS },
+			{ label: remainingLabel, value: Math.max(0, total - completed), color: COLOR_NEUTRAL }
 		];
 	}
 </script>
@@ -295,7 +300,7 @@
 			<div>
 				<h4 class="donut-title">Movies watched</h4>
 				<DonutChart
-					segments={watchedDonut(
+					segments={progressDonut(
 						data.watchedVsUnwatched.movies.watched,
 						data.watchedVsUnwatched.movies.total
 					)}
@@ -304,7 +309,7 @@
 			<div>
 				<h4 class="donut-title">Shows watched</h4>
 				<DonutChart
-					segments={watchedDonut(
+					segments={progressDonut(
 						data.watchedVsUnwatched.shows.watched,
 						data.watchedVsUnwatched.shows.total
 					)}
@@ -313,9 +318,11 @@
 			<div>
 				<h4 class="donut-title">Albums listened</h4>
 				<DonutChart
-					segments={watchedDonut(
+					segments={progressDonut(
 						data.watchedVsUnwatched.albums.watched,
-						data.watchedVsUnwatched.albums.total
+						data.watchedVsUnwatched.albums.total,
+						'Listened',
+						'Not listened'
 					)}
 				/>
 			</div>
@@ -331,6 +338,24 @@
 		{:else}
 			<ol>
 				{#each data.topWatched as row (row.mediaItemId)}
+					<li>
+						<span class="title"
+							>{row.title}{row.year ? ` (${row.year})` : ''}
+							<span class="type-tag">{typeLabels[row.type] ?? row.type}</span></span
+						>
+						<span class="count">×{row.watchCount}</span>
+					</li>
+				{/each}
+			</ol>
+		{/if}
+	</div>
+	<div>
+		<h2 class="section-headline">Most listened</h2>
+		{#if data.topListened.length === 0}
+			<p class="empty">Nothing yet.</p>
+		{:else}
+			<ol>
+				{#each data.topListened as row (row.mediaItemId)}
 					<li>
 						<span class="title"
 							>{row.title}{row.year ? ` (${row.year})` : ''}
