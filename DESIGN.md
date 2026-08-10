@@ -1016,6 +1016,26 @@ Unwatched filter returned only the untouched one, with the two partial
 shows correctly excluded from both; and the old "Mark as watched"
 button no longer renders on any show card. Typecheck/lint/build clean.
 
+### Stats page: "watched" language and rankings leaking into music
+
+Two small music-specific cleanups on `/stats`, same spirit as the
+watched-status fixes above: the "Albums Listened" donut's legend still
+said "Watched"/"Unwatched" (copy-pasted from the movies/shows donuts),
+and "Most watched" was one type-agnostic ranking — a heavily-played
+track could (and did, in practice) push movies and shows off a "most
+watched" list despite never having been watched at all.
+
+`watchedDonut()` became `progressDonut()`, taking the completed/
+remaining labels as parameters instead of hardcoding "Watched"/
+"Unwatched" — the albums donut now passes "Listened"/"Not listened".
+The single top-list query split into `topWatched` (movie/show/episode)
+and a new `topListened` (track/album), rendered as separate "Most
+watched" and "Most listened" sections rather than one mixed ranking.
+Verified against a seeded DB with both movie/show and track watch
+history: "Most watched" now lists only the movie/episode rows,
+"Most listened" only the tracks, and the albums donut reads
+"Listened"/"Not listened". Typecheck/lint/build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
