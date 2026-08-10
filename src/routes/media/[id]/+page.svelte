@@ -7,6 +7,10 @@
 
 	const item = $derived(data.item);
 	const isMusic = $derived(item.type === 'track' || item.type === 'album');
+	// Plex scrobbles land on the track, not the album, so an album's own watch_history
+	// rows only ever come from a manual click here — not a real "have I heard this album"
+	// signal like it is for movies/shows/tracks. Hide the pill rather than show fake data.
+	const showWatched = $derived(item.type !== 'album');
 	const isShow = $derived(item.type === 'show');
 	const isSeason = $derived(item.type === 'season');
 
@@ -114,26 +118,28 @@
 				{/if}
 
 				<div class="action-bar">
-					<form method="POST" action="?/markWatched" use:enhance>
-						<button type="submit" class="pill watched" class:active={data.watchCount > 0}>
-							<svg
-								class="icon"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle
-									cx="12"
-									cy="12"
-									r="3"
-									fill={data.watchCount > 0 ? 'currentColor' : 'none'}
-								/></svg
-							>
-							Watched{data.watchCount > 0 ? ` · ${data.watchCount}` : ''}
-						</button>
-					</form>
+					{#if showWatched}
+						<form method="POST" action="?/markWatched" use:enhance>
+							<button type="submit" class="pill watched" class:active={data.watchCount > 0}>
+								<svg
+									class="icon"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle
+										cx="12"
+										cy="12"
+										r="3"
+										fill={data.watchCount > 0 ? 'currentColor' : 'none'}
+									/></svg
+								>
+								Watched{data.watchCount > 0 ? ` · ${data.watchCount}` : ''}
+							</button>
+						</form>
+					{/if}
 
 					<form
 						method="POST"
@@ -201,7 +207,7 @@
 				{#if form?.message}
 					<p class="error">{form.message}</p>
 				{/if}
-				{#if data.lastWatchedAt}
+				{#if showWatched && data.lastWatchedAt}
 					<p class="last-watched">Last watched {data.lastWatchedAt.toLocaleDateString()}</p>
 				{/if}
 			</div>

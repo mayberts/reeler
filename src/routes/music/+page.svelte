@@ -12,6 +12,7 @@
 	sort={data.sort}
 	emptyText="No albums yet — albums are added automatically the first time you play a track."
 	square
+	showWatched={false}
 	genres={data.genres}
 	watched={data.watched}
 	availableGenres={data.availableGenres}

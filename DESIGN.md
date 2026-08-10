@@ -658,6 +658,35 @@ confirming the gate holds. Re-ran sync to confirm idempotency
 (`watchedFromViewCount: 0` on the second pass, row counts unchanged).
 Typecheck/lint/build clean.
 
+### Albums don't get a watched status — it was never real data
+
+A user looking at the Music browse grid noticed most albums showed
+"unwatched" with only a scattered few marked "watched" for no
+apparent reason, and questioned whether albums should have a watched
+status at all.
+
+Root cause: Plex scrobble events fire per-track, so `handleScrobble`
+(`src/lib/server/plex/webhook-handler.ts`) always inserts
+`watch_history` rows keyed to the *track's* media item id, never the
+album's. The only path that could ever write a `watch_history` row
+against an album's own id was the manual "mark as watched" action
+(`POST /api/media/[id]/watch`, also wired into the browse-grid card's
+action bar) — so a "watched" album on that grid never reflected actual
+listening, only an accidental or exploratory click. Same issue on the
+album detail page's "Watched" pill and "Last watched" line, which read
+the same per-item `watch_history` rows.
+
+Rather than back that badge with real data (aggregating watch status
+up from an album's tracks was considered and rejected — a "50% of
+tracks played" style status is a different, bigger feature, not what
+was asked), removed the watched action/badge/filter for albums
+entirely: `MediaCard` and `MediaBrowseGrid` gained a `showWatched`
+prop (default `true`, set `false` on the Music page), and the album
+detail page hides its "Watched" pill and "Last watched" line for
+`item.type === 'album'`. Movies, shows, and tracks are unaffected —
+tracks scrobble individually, so a track's own watched status is real.
+Typecheck/lint/build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
