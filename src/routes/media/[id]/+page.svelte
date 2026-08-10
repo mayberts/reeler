@@ -274,8 +274,8 @@
 		padding: 2rem 1.5rem;
 	}
 	.hero.has-backdrop {
-		padding-top: 3rem;
-		padding-bottom: 2.5rem;
+		padding-top: 3.5rem;
+		padding-bottom: 3rem;
 	}
 	.backdrop {
 		position: absolute;
@@ -294,40 +294,29 @@
 		   background — it holds a flat, solid plateau across the middle (where the
 		   title/meta-row/action-bar all actually sit) rather than dipping back toward
 		   transparent there, since a dip at exactly that height was defeating the
-		   horizontal layer's contrast on bright/detailed backdrop images. */
+		   horizontal layer's contrast on bright/detailed backdrop images.
+		   `light-dark()` per stop, not a `[data-theme]` selector — this app has no such
+		   attribute, it themes entirely off `prefers-color-scheme` via `light-dark()`
+		   (see app.css). A `:root:not([data-theme='dark'])` override here would always
+		   match (the attribute never exists) and permanently force the light variant
+		   regardless of actual color scheme — which is exactly what was washing out
+		   dark backdrop images in dark mode. */
 		background:
 			linear-gradient(
 				90deg,
-				rgba(0, 0, 0, 0.92) 0%,
-				rgba(0, 0, 0, 0.92) 24%,
-				rgba(0, 0, 0, 0.5) 55%,
-				transparent 88%
+				light-dark(rgba(255, 255, 255, 0.9), rgba(0, 0, 0, 0.88)) 0%,
+				light-dark(rgba(255, 255, 255, 0.9), rgba(0, 0, 0, 0.88)) 42%,
+				light-dark(rgba(255, 255, 255, 0.4), rgba(0, 0, 0, 0.35)) 68%,
+				transparent 90%
 			),
 			linear-gradient(
 				180deg,
 				var(--surface) 0%,
-				rgba(0, 0, 0, 0.6) 14%,
-				rgba(0, 0, 0, 0.6) 86%,
+				light-dark(rgba(255, 255, 255, 0.5), rgba(0, 0, 0, 0.55)) 14%,
+				light-dark(rgba(255, 255, 255, 0.5), rgba(0, 0, 0, 0.55)) 86%,
 				var(--surface) 100%
 			);
 		z-index: 1;
-	}
-	:root:not([data-theme='dark']) .scrim {
-		background:
-			linear-gradient(
-				90deg,
-				rgba(255, 255, 255, 0.95) 0%,
-				rgba(255, 255, 255, 0.95) 24%,
-				rgba(255, 255, 255, 0.55) 55%,
-				transparent 88%
-			),
-			linear-gradient(
-				180deg,
-				var(--surface) 0%,
-				rgba(255, 255, 255, 0.55) 14%,
-				rgba(255, 255, 255, 0.55) 86%,
-				var(--surface) 100%
-			);
 	}
 	.hero-inner {
 		position: relative;
@@ -350,7 +339,7 @@
 		gap: 1.5rem;
 	}
 	.poster {
-		flex: 0 0 9rem;
+		flex: 0 0 10.5rem;
 		aspect-ratio: 2 / 3;
 		border-radius: var(--radius);
 		overflow: hidden;
@@ -374,17 +363,15 @@
 		opacity: 0.35;
 	}
 	.hero-text {
-		flex: 1;
+		/* Bounded, not flex:1 — letting this stretch to fill the entire remaining hero
+		   width (previous bug) meant a translucent background placed on it covered
+		   almost the whole backdrop image instead of just the text, looking like a
+		   giant grey box rather than a full-bleed hero. Capping the width keeps the
+		   backdrop image dominant on the right, matching the reference look, and keeps
+		   the scrim's opaque zone (above) sized to actually match where text sits. */
+		flex: 0 1 auto;
+		max-width: 34rem;
 		min-width: 0;
-		/* The scrim gradient alone can't guarantee contrast against every possible
-		   backdrop image — a bright or busy one can still show through enough to make
-		   small badge/tagline text hard to read. A translucent panel behind the actual
-		   text content is a hard floor under that: legible regardless of what's behind
-		   it, on top of the gradient for the fade-to-image look further right/down. */
-		background: light-dark(rgba(255, 255, 255, 0.4), rgba(0, 0, 0, 0.4));
-		border-radius: var(--radius);
-		padding: 1rem 1.25rem;
-		margin: -1rem -1.25rem;
 	}
 	.hero-text h1 {
 		margin-bottom: 0.35rem;

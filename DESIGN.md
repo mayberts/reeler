@@ -534,6 +534,45 @@ both themes: title, tagline, every meta-row badge, external-link
 badges, and the action bar all legible. Confirmed the season/episode
 pages (which share this component) still render without error.
 
+### Hero fix, round two: the panel was covering the whole image, and dark mode was never actually dark
+
+A real screenshot of the fix above showed an ugly grey box sitting over
+almost the entire backdrop image, and a dark, moody backdrop rendering
+washed-out and pale rather than dark. Two separate bugs, not one:
+
+- **The translucent text panel was sized to the whole hero, not the
+  text.** It lived on `.hero-text`, which has `flex: 1` inside the
+  `.hero-body` flex row — so it stretches to fill _all_ remaining width
+  after the poster, not just the width of its own content. The
+  "panel behind the text" from the previous fix was therefore a panel
+  behind almost the entire image. Removed the panel; bounded
+  `.hero-text` to a `max-width` instead so it hugs its content, keeps
+  the backdrop image dominant on the right (matching the reference
+  look), and widened the scrim's opaque zone to actually match where
+  the now-bounded text column sits.
+- **Dark mode was never applying to the scrim.** The scrim's dark/light
+  split used a `:root:not([data-theme='dark'])` selector — but this app
+  has no `data-theme` attribute anywhere (it themes entirely off
+  `prefers-color-scheme` via `light-dark()`, see `app.css`), so that
+  selector always matched and permanently forced the _light_ variant
+  regardless of actual color scheme. A dark, moody backdrop under a
+  white-tinted overlay is exactly the washed-out look the original bug
+  report showed — this was likely the real root cause all along, not
+  just the gradient shape. Fixed by using `light-dark()` per gradient
+  stop instead, consistent with how the rest of the app themes; grepped
+  for the same broken pattern elsewhere and confirmed this was the only
+  occurrence.
+
+Also bumped the hero's overall size (taller padding, larger poster) to
+sit closer to the reference proportions.
+
+Verified against both a dark/moody synthetic backdrop and the earlier
+bright one, in an actually-dark-mode-emulated browser context this
+time (confirmed via a direct byte comparison that the correct image
+was served, ruling out a test-fixture mixup) — dark backdrop now
+renders properly dark with no grey box, bright backdrop still fully
+legible. Typecheck/lint/build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
