@@ -459,6 +459,42 @@ over the resulting season page confirming the episode list renders
 episode watched updates that episode's own state without touching the
 season's.
 
+### Sync performance: WAL mode + one transaction per sync
+
+The episode pre-sync above made a pre-existing performance problem
+impossible to ignore: `syncLibrary()` never actually turned on WAL mode
+(the original scoping doc claimed it did — it didn't) and wrote one row
+at a time with no explicit transaction, so every single insert/update
+was its own implicit transaction, each paying a full disk sync. That's
+fine for a few hundred rows; it isn't once a sync includes every episode
+of every show.
+
+Fixed two ways, both applied at once since they compound:
+
+- **`journal_mode = WAL` + `synchronous = NORMAL`** pragmas set on the
+  SQLite connection at startup. WAL lets reads and writes stop blocking
+  each other and checkpoints in batches instead of fsyncing every
+  commit; `NORMAL` is the standard, safe pairing with WAL (only an
+  OS-level crash, not an app crash, could lose the most recent commit).
+- **`syncLibrary()` split into a fetch phase and a write phase.** Every
+  Plex HTTP request now happens first, collecting plain item lists;
+  then every upsert runs inside a single `BEGIN`/`COMMIT` instead of
+  each getting its own. `db.transaction()` couldn't be used for this —
+  better-sqlite3's transaction wrapper requires a fully synchronous
+  callback and throws if it returns a promise, and the upsert loop is
+  async — so this uses raw `BEGIN`/`COMMIT`/`ROLLBACK` statements on
+  the underlying connection instead, which has no such restriction and
+  produces the identical commit-boundary behavior.
+
+Verified with a before/after timing test against the same mock-Plex
+dataset (302 items: 1 show, 1 season, 300 episodes) — temporarily
+reverted to the pre-fix code, timed a re-sync, restored the fix, timed
+it again, same data both times. ~0.96s → ~0.30s, roughly 3x, in this
+sandboxed environment; the gap should be considerably larger on a real
+Unraid array, where each fsync this eliminates costs more than it does
+here. Confirmed via direct DB query that `journal_mode` reports `wal`
+and all 302 rows land correctly.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

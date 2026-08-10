@@ -1,4 +1,9 @@
-import { listLibrarySections, listSectionItems } from '$lib/server/plex/client';
+import { sqliteClient } from '$lib/server/db';
+import {
+	listLibrarySections,
+	listSectionItems,
+	type PlexMetadataItem
+} from '$lib/server/plex/client';
 import { upsertMediaItemFromPlex } from './media-item';
 
 export interface LibrarySyncResult {
@@ -23,6 +28,14 @@ export interface LibrarySyncResult {
  * No pagination handling yet — fine for typical library sizes, worth revisiting if a
  * single section (now including every episode of every show) exceeds Plex's default
  * response container size.
+ *
+ * Two phases, deliberately kept separate: first every Plex HTTP request (fast, but a
+ * lot of round-trips for a full episode listing), then every DB write, wrapped in one
+ * transaction. Interleaving fetch-then-write-then-fetch-then-write per item — the
+ * previous shape of this function — meant each write ran in its own implicit
+ * transaction (a full disk sync per row); batching them into one commit is dramatically
+ * faster on any library big enough to notice, without holding a transaction open across
+ * a slow network call.
  */
 export async function syncLibrary(): Promise<LibrarySyncResult> {
 	const { MediaContainer } = await listLibrarySections();
@@ -30,31 +43,45 @@ export async function syncLibrary(): Promise<LibrarySyncResult> {
 		(section) => section.type === 'movie' || section.type === 'show' || section.type === 'artist'
 	);
 
+	// Fetch phase.
+	const allItems: PlexMetadataItem[] = [];
+	for (const section of sections) {
+		const params: Record<string, string> = section.type === 'artist' ? { type: '9' } : {};
+		const { MediaContainer: top } = await listSectionItems(section.key, params);
+		allItems.push(...(top.Metadata ?? []));
+
+		// Shows are fetched above (via the empty-params, top-level-item request); seasons
+		// and episodes need their own request each, since Plex only returns them with an
+		// explicit type filter, same as albums. Seasons before episodes means an episode's
+		// `parentRatingKey` always resolves to an already-upserted season, not a stub.
+		if (section.type === 'show') {
+			const { MediaContainer: seasons } = await listSectionItems(section.key, { type: '3' });
+			allItems.push(...(seasons.Metadata ?? []));
+			const { MediaContainer: episodes } = await listSectionItems(section.key, { type: '4' });
+			allItems.push(...(episodes.Metadata ?? []));
+		}
+	}
+
+	// Write phase — one transaction for the whole batch. `db.transaction()` isn't used
+	// here since better-sqlite3 requires its callback to be fully synchronous (throws if
+	// it returns a promise), which an async upsert loop can't be; raw BEGIN/COMMIT has no
+	// such restriction and produces the identical commit-boundary behavior.
 	let itemsUpserted = 0;
-	const upsertAll = async (items: Awaited<ReturnType<typeof listSectionItems>>) => {
-		for (const item of items.MediaContainer.Metadata ?? []) {
+	sqliteClient.exec('BEGIN');
+	try {
+		for (const item of allItems) {
 			try {
 				const id = await upsertMediaItemFromPlex(item);
 				if (id) itemsUpserted++;
 			} catch (err) {
-				// One malformed item shouldn't abort the whole section/sync.
+				// One malformed item shouldn't abort the whole sync.
 				console.error('[sync] failed to upsert library item', { ratingKey: item.ratingKey }, err);
 			}
 		}
-	};
-
-	for (const section of sections) {
-		const params: Record<string, string> = section.type === 'artist' ? { type: '9' } : {};
-		await upsertAll(await listSectionItems(section.key, params));
-
-		// Shows are upserted above (via the empty-params, top-level-item request); seasons
-		// and episodes need their own pass each, since Plex only returns them with an
-		// explicit type filter, same as albums. Seasons before episodes means an episode's
-		// `parentRatingKey` always resolves to an already-upserted season, not a stub.
-		if (section.type === 'show') {
-			await upsertAll(await listSectionItems(section.key, { type: '3' }));
-			await upsertAll(await listSectionItems(section.key, { type: '4' }));
-		}
+		sqliteClient.exec('COMMIT');
+	} catch (err) {
+		sqliteClient.exec('ROLLBACK');
+		throw err;
 	}
 
 	return { sectionsScanned: sections.length, itemsUpserted };
