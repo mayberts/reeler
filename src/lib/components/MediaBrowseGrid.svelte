@@ -115,6 +115,7 @@
 									name="genre"
 									value={genre}
 									checked={genres.includes(genre)}
+									onchange={(event) => event.currentTarget.form?.requestSubmit()}
 								/>
 								{genre}
 							</label>
@@ -124,7 +125,13 @@
 						<fieldset>
 							<legend>Watched</legend>
 							<label>
-								<input type="radio" name="watched" value="" checked={watched === null} /> Any
+								<input
+									type="radio"
+									name="watched"
+									value=""
+									checked={watched === null}
+									onchange={(event) => event.currentTarget.form?.requestSubmit()}
+								/> Any
 							</label>
 							<label>
 								<input
@@ -132,6 +139,7 @@
 									name="watched"
 									value="watched"
 									checked={watched === 'watched'}
+									onchange={(event) => event.currentTarget.form?.requestSubmit()}
 								/>
 								Watched
 							</label>
@@ -141,6 +149,7 @@
 									name="watched"
 									value="unwatched"
 									checked={watched === 'unwatched'}
+									onchange={(event) => event.currentTarget.form?.requestSubmit()}
 								/>
 								Unwatched
 							</label>
@@ -155,7 +164,7 @@
 			</details>
 		{/if}
 
-		<button type="submit" class="primary">Filter</button>
+		<button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Filter</button>
 
 		{#if totalPages > 1}
 			<div class="pagination">
@@ -230,6 +239,17 @@
 	}
 	.controls input[type='search'] {
 		min-width: 12rem;
+	}
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 	.filters {
 		position: relative;

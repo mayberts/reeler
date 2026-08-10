@@ -1036,6 +1036,27 @@ history: "Most watched" now lists only the movie/episode rows,
 "Most listened" only the tracks, and the albums donut reads
 "Listened"/"Not listened". Typecheck/lint/build clean.
 
+### Movies/Shows: redundant "Filter" button next to "Filters"
+
+`MediaBrowseGrid`'s controls bar had two adjacent, similarly-labeled
+controls: a "Filters" dropdown (genre checkboxes, watched radios) and a
+separate accent-colored "Filter" submit button beside it — reported as
+confusing, with the submit button looking broken. It wasn't broken (it
+was the only way to apply genre/watched selections, since those inputs
+had no auto-submit unlike the sort dropdown), but the redundancy was
+real: two controls doing the job of one.
+
+Fixed by giving the genre checkboxes and watched radios the same
+`onchange` auto-submit the sort dropdown already had, then removing the
+visible "Filter" button. A visually-hidden submit button stays in the
+form so pressing Enter in the search box still works (a GET form with
+multiple fields needs a submit button present for implicit submission).
+Verified via Playwright against a seeded DB: only one visible control
+("Filters") remains, Enter-to-search still submits
+(`?q=Movie+3&sort=title&watched=`), checking a genre auto-submits and
+correctly filters the grid, and selecting a watched radio auto-submits.
+Typecheck clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
