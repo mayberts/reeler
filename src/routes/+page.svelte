@@ -7,9 +7,6 @@
 </script>
 
 <h1>Dashboard</h1>
-<p>
-	See <a href="https://github.com/mayberts/reeler/blob/main/DESIGN.md">DESIGN.md</a> for the full roadmap.
-</p>
 
 <dl class="stats">
 	<div>

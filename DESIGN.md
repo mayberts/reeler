@@ -667,7 +667,7 @@ status at all.
 
 Root cause: Plex scrobble events fire per-track, so `handleScrobble`
 (`src/lib/server/plex/webhook-handler.ts`) always inserts
-`watch_history` rows keyed to the *track's* media item id, never the
+`watch_history` rows keyed to the _track's_ media item id, never the
 album's. The only path that could ever write a `watch_history` row
 against an album's own id was the manual "mark as watched" action
 (`POST /api/media/[id]/watch`, also wired into the browse-grid card's
