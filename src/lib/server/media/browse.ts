@@ -4,7 +4,7 @@ import { mediaItems, watchHistory } from '$lib/server/db/schema';
 import type { MediaType } from '$lib/server/db/schema';
 import { getShowProgress } from './show-progress';
 
-export const browseSortValues = ['title', 'year', 'added'] as const;
+export const browseSortValues = ['title', 'year', 'added', 'artist'] as const;
 export type BrowseSort = (typeof browseSortValues)[number];
 
 export function isBrowseSort(value: string | null): value is BrowseSort {
@@ -92,7 +92,9 @@ export async function browseMediaByType(type: MediaType, userId: string, filters
 			? [desc(mediaItems.year), asc(mediaItems.title)]
 			: sort === 'added'
 				? [desc(mediaItems.createdAt)]
-				: [asc(mediaItems.title)];
+				: sort === 'artist'
+					? [asc(mediaItems.artist), asc(mediaItems.title)]
+					: [asc(mediaItems.title)];
 
 	const [{ total }] = await db.select({ total: count() }).from(mediaItems).where(where);
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));

@@ -68,6 +68,9 @@ export const mediaItems = sqliteTable(
 		id: id(),
 		type: text('type', { enum: mediaTypeValues }).notNull(),
 		title: text('title').notNull(),
+		/** Recording artist — set on albums (Plex: an album's own parent is its artist;
+		 *  manually-logged: from the MusicBrainz search result). Null for every other type. */
+		artist: text('artist'),
 		year: integer('year'),
 		tmdbId: text('tmdb_id'),
 		tvdbId: text('tvdb_id'),

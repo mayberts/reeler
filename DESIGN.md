@@ -1057,6 +1057,47 @@ Verified via Playwright against a seeded DB: only one visible control
 correctly filters the grid, and selecting a watched radio auto-submits.
 Typecheck clean.
 
+### Music: album cards had no artist, no way to sort by one
+
+Album cards on `/music` showed only title and year — no artist, and no
+way to sort by one either, since `media_items` never had an artist
+column at all. Root cause: Plex's music hierarchy is Artist -> Album ->
+Track, and an album's own `parentTitle` (the artist) was simply
+discarded on upsert — `PARENT_TYPE` only maps track/episode/season to
+their parent, since artists were deliberately never modeled as their
+own row (nothing to "track" about an artist itself, per the existing
+comment in `media-item.ts`). That reasoning is still right, but it left
+no way to *display* the artist either, real data or not. The manually-
+logged (MusicBrainz) path worked around the same gap by folding the
+artist into the title string itself (`"Title — Artist"`), which is a
+display hack, not real data modeling.
+
+Added a nullable `artist` column to `media_items`. Plex sync now reads
+it straight off `item.parentTitle` when upserting an album (both full
+library syncs and lazy album creation from a first-played track go
+through `enrichSparseItem`, which fetches full canonical metadata —
+including the real parent/artist — before the row is built, so this
+works for both paths without a backfill script; existing libraries
+pick it up on the next sync, hourly or on restart). The manual
+MusicBrainz-logging path now stores `artist` as its own column instead
+of folding it into the title.
+
+`MediaBrowseGrid` gained an optional `sortOptions` prop (defaulting to
+the existing Title/Year/Recently-added set) so a specific browse page
+can swap in its own; `/music` now shows "Album (A–Z)" / "Artist (A–Z)"
+/ Year / Recently added. `browseSortValues` gained `'artist'`,
+ordering by `artist` then `title` as a tiebreaker. Album cards now pass
+`artist` through `MediaCard`'s existing `meta` slot ("2014 · Onyx"),
+and the media detail page shows it as a badge too.
+
+Verified against a seeded DB of 7 albums (including one with a null
+artist, simulating an unsynced/legacy row): cards render "Year ·
+Artist" correctly, the sort dropdown shows the new Album/Artist
+labels, and switching to "Artist (A–Z)" sorted null-artist first then
+alphabetically by artist (AC/DC, Buju Banton, Die Antwoord, Onyx x2,
+The Beatles) — matching SQLite's default null-first ASC ordering.
+Typecheck, lint, and production build all clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
