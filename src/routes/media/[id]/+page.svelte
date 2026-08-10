@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 
 	let { data, form } = $props();
 
 	const item = $derived(data.item);
 	const isMusic = $derived(item.type === 'track' || item.type === 'album');
+	const isShow = $derived(item.type === 'show');
 
 	const posterSrc = $derived(
 		item.plexThumb || item.artworkUrl ? `/api/media/${item.id}/poster` : null
@@ -12,6 +14,7 @@
 	const backdropSrc = $derived(
 		item.plexArt || item.backdropUrl ? `/api/media/${item.id}/backdrop` : null
 	);
+	const parentHref = $derived(data.parent ? resolve('/media/[id]', { id: data.parent.id }) : null);
 
 	const genres = $derived.by(() => {
 		if (!item.genres) return [] as string[];
@@ -32,6 +35,26 @@
 	}
 
 	const runtime = $derived(formatRuntime(item.runtimeMinutes));
+
+	// Links out to the source-of-truth pages for each external id Reeler has stored —
+	// not a data fetch, just a well-known URL shape per provider.
+	const externalLinks = $derived.by(() => {
+		const links: { label: string; url: string }[] = [];
+		if (item.imdbId)
+			links.push({ label: 'IMDb', url: `https://www.imdb.com/title/${item.imdbId}` });
+		if (item.tmdbId) {
+			const kind = item.type === 'movie' ? 'movie' : 'tv';
+			links.push({ label: 'TMDb', url: `https://www.themoviedb.org/${kind}/${item.tmdbId}` });
+		}
+		if (item.tvdbId) {
+			const kind = item.type === 'movie' ? 'movie' : 'series';
+			links.push({
+				label: 'TVDB',
+				url: `https://www.thetvdb.com/dereferrer/${kind}/${item.tvdbId}`
+			});
+		}
+		return links;
+	});
 </script>
 
 <div class="hero" class:has-backdrop={!!backdropSrc}>
@@ -40,119 +63,144 @@
 		<div class="scrim"></div>
 	{/if}
 	<div class="hero-inner">
-		<div class="poster">
-			{#if posterSrc}
-				<img src={posterSrc} alt="" />
-			{:else}
-				<div class="placeholder" aria-hidden="true">{item.title.charAt(0).toUpperCase()}</div>
-			{/if}
-		</div>
-		<div class="hero-text">
-			<h1>{item.title}</h1>
-			{#if isMusic && data.parent}
-				<p class="subtitle">from {data.parent.title}</p>
-			{:else if item.tagline}
-				<p class="subtitle tagline">"{item.tagline}"</p>
-			{/if}
-
-			<div class="meta-row">
-				{#if item.year}<span>{item.year}</span>{/if}
-				{#if runtime}<span>{runtime}</span>{/if}
-				{#if item.contentRating}<span class="badge">{item.contentRating}</span>{/if}
-				{#if data.myRating !== null}<span class="badge rating">★ {data.myRating}/10</span>{/if}
-			</div>
-
-			<div class="action-bar">
-				<form method="POST" action="?/markWatched" use:enhance>
-					<button type="submit" class="pill watched" class:active={data.watchCount > 0}>
-						<svg
-							class="icon"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle
-								cx="12"
-								cy="12"
-								r="3"
-								fill={data.watchCount > 0 ? 'currentColor' : 'none'}
-							/></svg
-						>
-						Watched{data.watchCount > 0 ? ` · ${data.watchCount}` : ''}
-					</button>
-				</form>
-
-				<form
-					method="POST"
-					action="?/rate"
-					use:enhance
-					class="pill rate-pill"
-					class:active={data.myRating !== null}
-				>
-					<svg
-						class="icon"
-						viewBox="0 0 24 24"
-						fill={data.myRating !== null ? 'currentColor' : 'none'}
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						><polygon
-							points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
-						/></svg
-					>
-					<input
-						type="number"
-						name="value"
-						min="0"
-						max="10"
-						step="1"
-						value={data.myRating ?? ''}
-						placeholder="Rate"
-					/>
-					<button type="submit">Save</button>
-				</form>
-
-				{#if data.myLists.length > 0}
-					<form method="POST" action="?/addToList" use:enhance class="pill list-pill">
-						<svg
-							class="icon"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line
-								x1="8"
-								y1="18"
-								x2="21"
-								y2="18"
-							/><line x1="3" y1="6" x2="3.01" y2="6" /><line
-								x1="3"
-								y1="12"
-								x2="3.01"
-								y2="12"
-							/><line x1="3" y1="18" x2="3.01" y2="18" /></svg
-						>
-						<select name="listId">
-							{#each data.myLists as list (list.id)}
-								<option value={list.id}>{list.name}</option>
-							{/each}
-						</select>
-						<button type="submit">Add</button>
-					</form>
+		{#if parentHref && data.parent}
+			<a class="breadcrumb" href={parentHref}>&larr; {data.parent.title}</a>
+		{/if}
+		<div class="hero-body">
+			<div class="poster">
+				{#if posterSrc}
+					<img src={posterSrc} alt="" />
+				{:else}
+					<div class="placeholder" aria-hidden="true">{item.title.charAt(0).toUpperCase()}</div>
 				{/if}
 			</div>
+			<div class="hero-text">
+				<h1>{item.title}</h1>
+				{#if isMusic && data.parent}
+					<p class="subtitle">from {data.parent.title}</p>
+				{:else if item.tagline}
+					<p class="subtitle tagline">"{item.tagline}"</p>
+				{/if}
 
-			{#if form?.message}
-				<p class="error">{form.message}</p>
-			{/if}
-			{#if data.lastWatchedAt}
-				<p class="last-watched">Last watched {data.lastWatchedAt.toLocaleDateString()}</p>
-			{/if}
+				<div class="meta-row">
+					{#if item.year}<span>{item.year}</span>{/if}
+					{#if runtime}<span>{runtime}</span>{/if}
+					{#if isShow && data.seasons.length > 0}
+						<span>{data.seasons.length} Season{data.seasons.length === 1 ? '' : 's'}</span>
+					{/if}
+					{#if item.criticRating !== null}
+						<span class="badge rating-badge">★ {item.criticRating.toFixed(1)}</span>
+					{/if}
+					{#if item.contentRating}<span class="badge">{item.contentRating}</span>{/if}
+					{#if item.studio}<span>{item.studio}</span>{/if}
+					{#if data.myRating !== null}<span class="badge rating">★ {data.myRating}/10</span>{/if}
+				</div>
+
+				{#if externalLinks.length > 0}
+					<div class="external-links">
+						{#each externalLinks as link (link.label)}
+							<a
+								class="ext-badge"
+								href={link.url}
+								target="_blank"
+								rel="external noopener noreferrer">{link.label}</a
+							>
+						{/each}
+					</div>
+				{/if}
+
+				<div class="action-bar">
+					<form method="POST" action="?/markWatched" use:enhance>
+						<button type="submit" class="pill watched" class:active={data.watchCount > 0}>
+							<svg
+								class="icon"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle
+									cx="12"
+									cy="12"
+									r="3"
+									fill={data.watchCount > 0 ? 'currentColor' : 'none'}
+								/></svg
+							>
+							Watched{data.watchCount > 0 ? ` · ${data.watchCount}` : ''}
+						</button>
+					</form>
+
+					<form
+						method="POST"
+						action="?/rate"
+						use:enhance
+						class="pill rate-pill"
+						class:active={data.myRating !== null}
+					>
+						<svg
+							class="icon"
+							viewBox="0 0 24 24"
+							fill={data.myRating !== null ? 'currentColor' : 'none'}
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							><polygon
+								points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+							/></svg
+						>
+						<input
+							type="number"
+							name="value"
+							min="0"
+							max="10"
+							step="1"
+							value={data.myRating ?? ''}
+							placeholder="Rate"
+						/>
+						<button type="submit">Save</button>
+					</form>
+
+					{#if data.myLists.length > 0}
+						<form method="POST" action="?/addToList" use:enhance class="pill list-pill">
+							<svg
+								class="icon"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line
+									x1="8"
+									y1="18"
+									x2="21"
+									y2="18"
+								/><line x1="3" y1="6" x2="3.01" y2="6" /><line
+									x1="3"
+									y1="12"
+									x2="3.01"
+									y2="12"
+								/><line x1="3" y1="18" x2="3.01" y2="18" /></svg
+							>
+							<select name="listId">
+								{#each data.myLists as list (list.id)}
+									<option value={list.id}>{list.name}</option>
+								{/each}
+							</select>
+							<button type="submit">Add</button>
+						</form>
+					{/if}
+				</div>
+
+				{#if form?.message}
+					<p class="error">{form.message}</p>
+				{/if}
+				{#if data.lastWatchedAt}
+					<p class="last-watched">Last watched {data.lastWatchedAt.toLocaleDateString()}</p>
+				{/if}
+			</div>
 		</div>
 	</div>
 </div>
@@ -166,6 +214,31 @@
 	<div class="genres">
 		{#each genres as genre (genre)}
 			<span class="badge">{genre}</span>
+		{/each}
+	</div>
+{/if}
+
+{#if isShow && data.seasons.length > 0}
+	<h2 class="section-headline">Seasons</h2>
+	<div class="seasons-grid">
+		{#each data.seasons as season (season.id)}
+			<a class="season-card" href={resolve('/media/[id]', { id: season.id })}>
+				<div class="season-poster">
+					{#if season.plexThumb || season.artworkUrl}
+						<img src={`/api/media/${season.id}/poster`} alt="" loading="lazy" />
+					{:else}
+						<div class="placeholder small" aria-hidden="true">
+							{season.title.charAt(0).toUpperCase()}
+						</div>
+					{/if}
+				</div>
+				<div class="season-info">
+					<strong>{season.title}</strong>
+					{#if season.episodeCount}
+						<span>{season.episodeCount} episode{season.episodeCount === 1 ? '' : 's'}</span>
+					{/if}
+				</div>
+			</a>
 		{/each}
 	</div>
 {/if}
@@ -211,9 +284,21 @@
 		position: relative;
 		z-index: 2;
 		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+	.breadcrumb {
+		color: var(--ink-secondary);
+		font-size: 0.85rem;
+		font-weight: 600;
+		text-decoration: none;
+	}
+	.breadcrumb:hover {
+		color: var(--accent);
+	}
+	.hero-body {
+		display: flex;
 		gap: 1.5rem;
-		max-width: 60rem;
-		margin: 0 auto;
 	}
 	.poster {
 		flex: 0 0 9rem;
@@ -352,5 +437,66 @@
 	}
 	.error {
 		color: var(--danger);
+	}
+	.rating-badge {
+		color: var(--accent);
+		border-color: var(--accent);
+	}
+	.external-links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-bottom: 1.1rem;
+	}
+	.ext-badge {
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-sm);
+		padding: 0.2rem 0.6rem;
+		font-size: 0.75rem;
+		font-weight: 700;
+		text-decoration: none;
+		color: var(--ink-secondary);
+	}
+	.ext-badge:hover {
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+	.seasons-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+		gap: 1rem;
+		margin: 1rem 0 2rem;
+	}
+	.season-card {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		text-decoration: none;
+		color: inherit;
+	}
+	.season-poster {
+		aspect-ratio: 2 / 3;
+		border-radius: var(--radius);
+		overflow: hidden;
+		background: light-dark(#e5e4df, #232322);
+	}
+	.season-poster img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+	}
+	.placeholder.small {
+		font-size: 1.75rem;
+	}
+	.season-info {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		font-size: 0.85rem;
+	}
+	.season-info span {
+		color: var(--ink-muted);
+		font-size: 0.78rem;
 	}
 </style>

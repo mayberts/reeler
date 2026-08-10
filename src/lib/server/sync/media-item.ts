@@ -6,32 +6,41 @@ import { getMetadata, type PlexMetadataItem } from '$lib/server/plex/client';
 const PLEX_TYPE_TO_MEDIA_TYPE: Partial<Record<string, MediaType>> = {
 	movie: 'movie',
 	show: 'show',
+	season: 'season',
 	episode: 'episode',
 	track: 'track',
 	album: 'album'
 };
 
+/** For a lazily-created child item, which media type its `parentRatingKey` refers to. */
+const PARENT_TYPE: Partial<Record<MediaType, MediaType>> = {
+	track: 'album',
+	episode: 'season',
+	season: 'show'
+};
+
 function extractExternalIds(item: PlexMetadataItem) {
-	const ids: { tmdbId?: string; tvdbId?: string } = {};
+	const ids: { tmdbId?: string; tvdbId?: string; imdbId?: string } = {};
 	for (const guid of item.Guid ?? []) {
 		const [source, value] = guid.id.split('://');
 		if (source === 'tmdb') ids.tmdbId = value;
 		if (source === 'tvdb') ids.tvdbId = value;
+		if (source === 'imdb') ids.imdbId = value;
 	}
 	return ids;
 }
 
 /**
- * Plex's history entries and webhook payloads for music are much sparser than for
- * movies/shows/episodes: a real track entry looks like `{ title, ratingKey, type,
- * parentTitle, grandparentTitle, viewedAt, ... }` — `parentTitle` (the album name) is
- * there as plain text, but `parentRatingKey` (the album's own ratingKey) never is.
- * Without it there's no way to link a track to its album, so a sparse track/album item
- * (no `thumb`, used as the signal it wasn't a full lookup) gets enriched from the
- * canonical `/library/metadata/{ratingKey}` before proceeding.
+ * Plex's history entries and webhook payloads for music/episodes are much sparser than
+ * a full library listing: a real track/episode entry looks like `{ title, ratingKey,
+ * type, parentTitle, grandparentTitle, viewedAt, ... }` — `parentTitle` (the album/season
+ * name) is there as plain text, but `parentRatingKey` (its own ratingKey) never is.
+ * Without it there's no way to link the item to its parent, so a sparse item (no
+ * `thumb`, used as the signal it wasn't a full lookup) gets enriched from the canonical
+ * `/library/metadata/{ratingKey}` before proceeding.
  */
-async function enrichSparseMusicItem(item: PlexMetadataItem): Promise<PlexMetadataItem> {
-	if (item.type !== 'track' && item.type !== 'album') return item;
+async function enrichSparseItem(item: PlexMetadataItem): Promise<PlexMetadataItem> {
+	if (item.type !== 'track' && item.type !== 'album' && item.type !== 'episode') return item;
 	if (item.thumb || !item.ratingKey) return item;
 
 	try {
@@ -40,7 +49,7 @@ async function enrichSparseMusicItem(item: PlexMetadataItem): Promise<PlexMetada
 		return full ? { ...item, ...full } : item;
 	} catch (err) {
 		console.error(
-			'[sync] failed to fetch full metadata for sparse music item',
+			'[sync] failed to fetch full metadata for sparse item',
 			{ ratingKey: item.ratingKey },
 			err
 		);
@@ -54,12 +63,13 @@ async function enrichSparseMusicItem(item: PlexMetadataItem): Promise<PlexMetada
  * falling back to external ids, so an item created from a history entry is found again
  * later by a library sync (and vice versa) even before either side has both fields.
  *
- * Music isn't pre-synced from the library like movies/shows — the catalog can be huge
- * and "tracking" is about what's actually been played, not mirroring every track. Album
- * and track items get created lazily here, the same way episodes already are, the first
- * time they show up in watch history or a webhook. Artists aren't modeled as their own
- * row (nothing to "track" about an artist itself); a track's `parentTitle` already
- * carries the artist context via its album.
+ * Shows pre-sync their full season list (see `syncLibrary`), so a season's row usually
+ * already exists by the time this runs — but music isn't pre-synced from the library
+ * like movies/shows/seasons, since the catalog can be huge and "tracking" is about what's
+ * actually been played, not mirroring every track. Album and track items, and episodes,
+ * get created lazily here, the first time they show up in watch history or a webhook.
+ * Artists aren't modeled as their own row (nothing to "track" about an artist itself); a
+ * track's `parentTitle` already carries the artist context via its album.
  */
 export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promise<string | null> {
 	const type = PLEX_TYPE_TO_MEDIA_TYPE[rawItem.type];
@@ -68,16 +78,21 @@ export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promis
 	// skip rather than let a NOT NULL constraint blow up the whole sync batch.
 	if (!type || !rawItem.title || !rawItem.ratingKey) return null;
 
-	const item = await enrichSparseMusicItem(rawItem);
+	const item = await enrichSparseItem(rawItem);
 
-	const { tmdbId, tvdbId } = extractExternalIds(item);
+	const { tmdbId, tvdbId, imdbId } = extractExternalIds(item);
 
+	const parentType = PARENT_TYPE[type];
 	let parentId: string | null = null;
-	if (type === 'track' && item.parentRatingKey && item.parentTitle) {
+	if (parentType && item.parentRatingKey && item.parentTitle) {
 		parentId = await upsertMediaItemFromPlex({
 			ratingKey: item.parentRatingKey,
 			title: item.parentTitle,
-			type: 'album'
+			type: parentType,
+			// A season stub created here (e.g. from a lazily-created episode that beat the
+			// season pre-sync) still carries its own number, so the seasons grid can sort it
+			// correctly even before a full library sync fills in the rest.
+			index: type === 'episode' ? item.parentIndex : undefined
 		});
 	}
 
@@ -93,14 +108,16 @@ export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promis
 	const values = {
 		type,
 		title: item.title,
-		year: item.year ?? null,
-		tmdbId: tmdbId ?? null,
-		tvdbId: tvdbId ?? null,
+		// A season/episode's parent-linking stub call only carries a ratingKey/title (see
+		// above) — for a show/movie/album that's already been fully synced, that stub
+		// re-upsert must not clobber the richer data already on file, so every other field
+		// here falls back to `existing` rather than a bare null.
+		year: item.year ?? existing?.year ?? null,
+		tmdbId: tmdbId ?? existing?.tmdbId ?? null,
+		tvdbId: tvdbId ?? existing?.tvdbId ?? null,
+		imdbId: imdbId ?? existing?.imdbId ?? null,
 		plexRatingKey: item.ratingKey,
-		parentId,
-		// Not every payload carries these fields even after enrichment (e.g. a movie/show
-		// history entry that predates this schema) — fall back to whatever's already
-		// stored rather than clobbering known data with null.
+		parentId: parentId ?? existing?.parentId ?? null,
 		plexThumb: item.thumb ?? existing?.plexThumb ?? null,
 		plexArt: item.art ?? existing?.plexArt ?? null,
 		tagline: item.tagline ?? existing?.tagline ?? null,
@@ -111,7 +128,17 @@ export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promis
 		contentRating: item.contentRating ?? existing?.contentRating ?? null,
 		genres: item.Genre?.length
 			? JSON.stringify(item.Genre.map((g) => g.tag))
-			: (existing?.genres ?? null)
+			: (existing?.genres ?? null),
+		studio: item.studio ?? existing?.studio ?? null,
+		criticRating: item.rating ?? existing?.criticRating ?? null,
+		// On a season item, `index` is its own number; on an episode, `parentIndex` is its
+		// season's number and `index` is its number within that season.
+		seasonNumber:
+			(type === 'season' ? item.index : type === 'episode' ? item.parentIndex : undefined) ??
+			existing?.seasonNumber ??
+			null,
+		episodeNumber: (type === 'episode' ? item.index : undefined) ?? existing?.episodeNumber ?? null,
+		episodeCount: (type === 'season' ? item.leafCount : undefined) ?? existing?.episodeCount ?? null
 	};
 
 	if (existing) {
@@ -125,7 +152,7 @@ export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promis
 
 /**
  * One-time (but idempotent, safe to run repeatedly) repair for tracks that were
- * created before `enrichSparseMusicItem` existed — they have a real `plexRatingKey`
+ * created before `enrichSparseItem` existed — they have a real `plexRatingKey`
  * but no `parentId`, since the sparse payload they were created from never carried
  * `parentRatingKey`. Re-running each through `upsertMediaItemFromPlex` with just its
  * ratingKey triggers the same enrichment fetch a fresh sync would, filling in the

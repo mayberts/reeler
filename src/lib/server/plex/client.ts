@@ -99,7 +99,7 @@ export interface PlexMetadataItem {
 	userRating?: number;
 	guid?: string;
 	Guid?: Array<{ id: string }>;
-	/** For tracks: the containing album's ratingKey/title (present on track history/webhook entries). */
+	/** For tracks/episodes: the containing album/season's ratingKey/title. For seasons: the show's. */
 	parentRatingKey?: string;
 	parentTitle?: string;
 	/** Relative path to the poster image, e.g. `/library/metadata/123/thumb/169...`. */
@@ -112,6 +112,16 @@ export interface PlexMetadataItem {
 	duration?: number;
 	contentRating?: string;
 	Genre?: Array<{ tag: string }>;
+	/** Network (shows) or studio (movies). */
+	studio?: string;
+	/** Critic score, 0-10 (e.g. Rotten Tomatoes), distinct from `userRating`. */
+	rating?: number;
+	/** Season/episode ordinal — on a season item, its number; on an episode, its number within the season. */
+	index?: number;
+	/** On an episode item, its season's number. */
+	parentIndex?: number;
+	/** On a season item, Plex's own episode count for it. */
+	leafCount?: number;
 }
 
 export interface PlexMetadataResponse {

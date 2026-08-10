@@ -1,5 +1,5 @@
 import { error, fail } from '@sveltejs/kit';
-import { and, count, desc, eq } from 'drizzle-orm';
+import { and, asc, count, desc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { mediaItems, watchHistory, ratings } from '$lib/server/db/schema';
 import { setRating } from '$lib/server/ratings';
@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const item = await db.query.mediaItems.findFirst({ where: eq(mediaItems.id, params.id) });
 	if (!item) error(404, 'Not found');
 
-	const [[{ watchCount }], lastWatch, rating, visibleLists, parent] = await Promise.all([
+	const [[{ watchCount }], lastWatch, rating, visibleLists, parent, seasons] = await Promise.all([
 		db
 			.select({ watchCount: count() })
 			.from(watchHistory)
@@ -28,12 +28,19 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		getVisibleLists(userId),
 		item.parentId
 			? db.query.mediaItems.findFirst({ where: eq(mediaItems.id, item.parentId) })
-			: Promise.resolve(null)
+			: Promise.resolve(null),
+		item.type === 'show'
+			? db.query.mediaItems.findMany({
+					where: and(eq(mediaItems.parentId, item.id), eq(mediaItems.type, 'season')),
+					orderBy: asc(mediaItems.seasonNumber)
+				})
+			: Promise.resolve([])
 	]);
 
 	return {
 		item,
 		parent,
+		seasons,
 		watchCount,
 		lastWatchedAt: lastWatch?.watchedAt ?? null,
 		myRating: rating?.value ?? null,

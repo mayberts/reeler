@@ -2,13 +2,14 @@ import {
 	sqliteTable,
 	text,
 	integer,
+	real,
 	uniqueIndex,
 	index,
 	type AnySQLiteColumn
 } from 'drizzle-orm/sqlite-core';
 import { relations } from 'drizzle-orm';
 
-export const mediaTypeValues = ['movie', 'show', 'episode', 'album', 'track'] as const;
+export const mediaTypeValues = ['movie', 'show', 'season', 'episode', 'album', 'track'] as const;
 export type MediaType = (typeof mediaTypeValues)[number];
 
 export const historySourceValues = ['plex', 'manual'] as const;
@@ -70,10 +71,21 @@ export const mediaItems = sqliteTable(
 		year: integer('year'),
 		tmdbId: text('tmdb_id'),
 		tvdbId: text('tvdb_id'),
+		imdbId: text('imdb_id'),
 		musicbrainzId: text('musicbrainz_id'),
 		/** Secondary mapping to the source Plex server; absent for manually-logged items. */
 		plexRatingKey: text('plex_rating_key'),
+		/** For episodes/tracks: links to season/album. For seasons: links to the show. */
 		parentId: text('parent_id').references((): AnySQLiteColumn => mediaItems.id),
+		/** Set on `season`/`episode` rows — a show's season number, or an episode's within it. */
+		seasonNumber: integer('season_number'),
+		episodeNumber: integer('episode_number'),
+		/** Set on `season` rows — Plex's own episode count for that season, since episodes stay lazy. */
+		episodeCount: integer('episode_count'),
+		/** Network (shows) or studio (movies), from Plex's own `studio` field. */
+		studio: text('studio'),
+		/** Plex's own critic score (0-10), e.g. Rotten Tomatoes — distinct from a user's own rating. */
+		criticRating: real('critic_rating'),
 		/** Public poster URL (currently only TMDb, for manually-logged items) — safe to link to directly. */
 		artworkUrl: text('artwork_url'),
 		/**

@@ -358,6 +358,64 @@ overlay remove button, history date grouping, type-filter tabs, and
 entry deletion (3→2 rows) all confirmed working by screenshot and
 direct DB queries.
 
+### Detail page: full-bleed hero, external links, seasons
+
+Comparing a real detail page side-by-side with Scrob's showed the gap
+had moved: `/media/[id]` was still the boxed, sparse hero from the
+original detail-page phase, missing several things Scrob shows for a
+TV show. Closed what fit Reeler's existing data plus one deliberate new
+sync capability, and explicitly deferred the one item that would've
+needed a new external integration:
+
+- **Seasons pre-sync (new sync capability).** Episodes stay lazy (same
+  as before — an episode list is huge and "tracking" is about what's
+  been watched, not mirroring the catalog), but a show's *seasons* are
+  few enough, and useful enough to browse before anything's been
+  watched, to pre-sync like the show itself — the same reasoning that
+  already applied to albums. `syncLibrary()` now makes a second,
+  `type: '3'`-filtered request per show section (same trick `type: '9'`
+  already used for albums) and upserts every season as its own
+  `media_items` row (`type: 'season'`, `parentId` → the show,
+  `seasonNumber`/`episodeCount` from Plex's own `index`/`leafCount`).
+  A lazily-created episode now links to its pre-synced season the same
+  way a track links to its album.
+- **Richer meta row and external links.** Critic score badge (Plex's
+  own `rating` field — distinct from a user's own rating), studio/
+  network name, and a season count for shows. IMDb/TMDb/TVDB badges
+  link out using ids Reeler already extracts from Plex's `Guid` array
+  (added IMDb extraction alongside the existing TMDb/TVDb parsing).
+- **Full-bleed hero + seasons grid.** The hero no longer centers its
+  content in a narrower inner column — it now spans the same width as
+  the rest of the page, with a breadcrumb back to the parent show/album
+  above the poster for episode/season/track pages. Shows with synced
+  seasons get a poster-grid section below the overview, matching
+  Scrob's seasons row; clicking a season poster opens its own (fairly
+  minimal, since episodes still aren't pre-synced) detail page.
+- **Deliberately skipped: "Where to watch" streaming availability.**
+  Unlike everything else above, this isn't closable with data Reeler
+  already has — it needs a new call to TMDb's watch-providers endpoint
+  (region-specific, nothing in the codebase calls it today). Flagged to
+  the user rather than silently built or silently dropped; skipped for
+  this round.
+
+Building the seasons pre-sync surfaced a real bug via the DB smoke
+test, not just a gap: a season's parent-linking stub upsert (creating/
+finding its parent show mid-sync) was re-upserting the *already fully
+synced* show with stub data, and `tmdbId`/`tvdbId` didn't fall back to
+the existing row the way every other enrichable field already did —
+so a show's external ids were getting silently nulled out the moment
+its seasons synced. Fixed by adding the same `?? existing?.field ??
+null` fallback those two fields were missing (`year` had the identical
+gap, fixed the same way).
+
+Verified with a mock Plex server exercising the real sync path (not
+just seeded rows) — a show plus two seasons ("Specials", "Season 1")
+with studio/critic-rating/content-rating/tmdb+tvdb+imdb ids — confirming
+via direct DB query that the season pre-sync, parent-linking, and the
+tmdbId/tvdbId fix all work end-to-end, then a Playwright pass over the
+resulting detail page confirming the seasons grid, external link
+badges, critic-rating badge, and studio/content-rating meta all render.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
