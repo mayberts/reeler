@@ -812,6 +812,54 @@ across a reload, and confirmed a non-admin account gets a 403 from both
 the page and the underlying test-credential API routes and never sees
 the nav link. Typecheck/lint/build clean.
 
+### Settings page (stage 2 of 3): TVDB as a fallback show search
+
+TVDB previously had no real integration at all — a `tvdbId` column
+that Plex's own guid parsing happened to populate, and a link-out on
+the detail page, but nothing that ever queried TVDB's API. This stage
+adds a real TVDB v4 client (`lib/server/tvdb/client.ts`: login/token
+caching, `searchTvdb`, `getTvdbDetails`) and wires it into the History
+page's manual-log search as exactly what the Settings page's own copy
+already promised: a fallback "for shows not on TMDB."
+
+Deliberately fallback-only, not merge-always: `searchForManualLog()`
+(`routes/history/+page.server.ts`) tries TMDb first and only calls
+TVDB when TMDb returns zero results, rather than always querying both
+and combining — keeps the common case (TMDb has it) to one request,
+and avoids TVDB results outranking a better TMDb match for anything
+TMDb does have. `logManual` now branches on which source a result came
+from (`source: 'tmdb' | 'tvdb'`), find-or-creating against `tmdbId` or
+`tvdbId` respectively — `media_items` already had both columns from
+the original Plex-guid-parsing design, so no schema change was needed
+here. A TVDB-sourced item's tagline/backdrop stay null (TVDB doesn't
+expose either in the shape TMDb does) rather than guessing at TVDB's
+less predictable artwork-type taxonomy — same "leave it for a future
+pass, don't guess" call as stage 1's backdrop gap.
+
+The manual-log section's gate changed from "TMDb configured" to
+"TMDb _or_ TVDB configured" (`manualLogEnabled`), since TVDB alone is
+now a legitimate way to search — confirmed via the same fetch-mock
+harness (below) that logging still works with only a TVDB key set and
+no TMDb token at all.
+
+This sandbox has no outbound network access to arbitrary third-party
+hosts (confirmed: the outbound proxy 403s a direct `CONNECT` to
+`api4.thetvdb.com`), so the real TVDB API couldn't be hit for
+verification here the way earlier fixes hit a real/mock Plex server.
+Verified instead by temporarily patching `globalThis.fetch` (prepended
+into `hooks.server.ts` for the test run only, reverted via `git
+checkout` before committing anything — never shipped) to serve
+realistic TVDB v4 fixture JSON, then exercising the real, unmodified
+route code through the actual running dev server and a real browser:
+confirmed the TVDB fallback fires when TMDb returns empty and does
+_not_ fire when TMDb has a result (checked both directions against the
+same mock), confirmed the merged search result renders with a
+"SHOW (TVDB)" badge, logged it and confirmed via direct DB query that
+`tvdbId`/genres/summary/runtime landed correctly with `tmdbId` null,
+and logged the same result a second time to confirm find-or-create
+idempotency (one `media_items` row, two `watch_history` rows) — the
+same guarantee the TMDb path already had. Typecheck/lint/build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
@@ -850,13 +898,13 @@ All four original roadmap phases are done.
 5. 🚧 In-app Settings page (admin-only), replacing `.env`-only config.
    Stage 1 done: DB-backed settings with env-var fallback, Plex
    connection + TMDB (now v4 Bearer token) editable and validated from
-   the UI, accent-color theming and a 24-hour time toggle — see the fix
-   log above. Queued next: stage 2 (a real TVDB client, used as a
-   fallback when manually searching for a show TMDb doesn't have) and
-   stage 3 (a MusicBrainz client and a new manual-music-logging flow,
-   parallel to the existing TMDb-backed movie/TV one). The Settings
-   page already has TVDB/MusicBrainz-shaped fields wired up; those two
-   stages make them actually do something beyond being saved.
+   the UI, accent-color theming and a 24-hour time toggle. Stage 2
+   done: a real TVDB client, used as a fallback when manually searching
+   for a show TMDb doesn't have — see the fix log above for both.
+   Queued next: stage 3 (a MusicBrainz client and a new
+   manual-music-logging flow, parallel to the existing TMDb/TVDB-backed
+   movie/TV one). The Settings page already has a MusicBrainz-shaped
+   hint; this stage makes it actually do something.
 
 ## Open questions
 

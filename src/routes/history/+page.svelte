@@ -95,10 +95,11 @@
 
 <h2 class="section-headline">Log something not in Plex</h2>
 
-{#if !data.tmdbEnabled}
+{#if !data.manualLogEnabled}
 	<p class="hint">
-		Manual logging needs a TMDb API key — set <code>TMDB_API_KEY</code> to enable it (see
-		<code>.env.example</code>).
+		Manual logging needs a TMDB or TVDB key — set one from the <a href={resolve('/settings')}
+			>Settings</a
+		> page to enable it.
 	</p>
 {:else}
 	{#if form?.loggedSuccess}
@@ -117,16 +118,17 @@
 			<p class="empty">No matches.</p>
 		{:else}
 			<div class="card-grid">
-				{#each data.logResults as result (result.tmdbId)}
+				{#each data.logResults as result (`${result.source}-${result.externalId}`)}
 					<div class="result">
 						<MediaCard
 							title={result.title}
 							year={result.year}
 							posterUrl={result.posterUrl}
-							type={result.mediaType}
+							type={result.source === 'tvdb' ? 'show (TVDB)' : result.mediaType}
 						/>
 						<form method="POST" action="?/logManual" use:enhance>
-							<input type="hidden" name="tmdbId" value={result.tmdbId} />
+							<input type="hidden" name="source" value={result.source} />
+							<input type="hidden" name="externalId" value={result.externalId} />
 							<input type="hidden" name="title" value={result.title} />
 							<input type="hidden" name="year" value={result.year ?? ''} />
 							<input type="hidden" name="mediaType" value={result.mediaType} />
