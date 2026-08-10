@@ -4,6 +4,8 @@ import { db } from '$lib/server/db';
 import { watchHistory, mediaItems, ratings, type MediaType } from '$lib/server/db/schema';
 import { searchTmdb, getTmdbDetails } from '$lib/server/tmdb/client';
 import { getTmdbReadAccessToken } from '$lib/server/tmdb/config';
+import { searchTvdb, getTvdbDetails } from '$lib/server/tvdb/client';
+import { getTvdbApiKey } from '$lib/server/tvdb/config';
 import { getOwnedLists } from '$lib/server/lists';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -13,6 +15,46 @@ type HistoryTypeFilter = (typeof historyTypeValues)[number];
 
 function isHistoryTypeFilter(value: string | null): value is HistoryTypeFilter {
 	return !!value && (historyTypeValues as readonly string[]).includes(value);
+}
+
+interface ManualLogResult {
+	source: 'tmdb' | 'tvdb';
+	externalId: string;
+	title: string;
+	year: number | null;
+	mediaType: 'movie' | 'show';
+	posterUrl: string | null;
+}
+
+/**
+ * TMDb is the primary manual-log search — it covers both movies and TV and is usually
+ * more complete. TVDB only kicks in as a fallback when TMDb has literally nothing for
+ * the query, scoped to shows (see the Settings page's own copy: "shows not on TMDB"),
+ * rather than always querying both and merging — keeps the common case to one request
+ * and avoids TVDB results outranking better TMDb matches for anything TMDb does have.
+ */
+async function searchForManualLog(query: string): Promise<ManualLogResult[]> {
+	const tmdbResults = await searchTmdb(query);
+	if (tmdbResults.length > 0) {
+		return tmdbResults.map((r) => ({
+			source: 'tmdb' as const,
+			externalId: r.tmdbId,
+			title: r.title,
+			year: r.year,
+			mediaType: r.mediaType,
+			posterUrl: r.posterUrl
+		}));
+	}
+
+	const tvdbResults = await searchTvdb(query);
+	return tvdbResults.map((r) => ({
+		source: 'tvdb' as const,
+		externalId: r.tvdbId,
+		title: r.title,
+		year: r.year,
+		mediaType: 'show' as const,
+		posterUrl: r.posterUrl
+	}));
 }
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -61,9 +103,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
 	const logQuery = url.searchParams.get('logQuery')?.trim() ?? '';
-	const [logResults, tmdbToken] = await Promise.all([
-		logQuery ? searchTmdb(logQuery) : Promise.resolve([]),
-		getTmdbReadAccessToken()
+	const [logResults, tmdbToken, tvdbKey] = await Promise.all([
+		logQuery ? searchForManualLog(logQuery) : Promise.resolve([]),
+		getTmdbReadAccessToken(),
+		getTvdbApiKey()
 	]);
 
 	return {
@@ -74,7 +117,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		typeFilter,
 		logQuery,
 		logResults,
-		tmdbEnabled: tmdbToken !== null,
+		manualLogEnabled: tmdbToken !== null || tvdbKey !== null,
 		myLists
 	};
 };
@@ -85,7 +128,8 @@ export const actions: Actions = {
 		const user = locals.user;
 
 		const form = await request.formData();
-		const tmdbId = form.get('tmdbId');
+		const source = form.get('source');
+		const externalId = form.get('externalId');
 		const title = form.get('title');
 		const yearRaw = form.get('year');
 		const mediaType = form.get('mediaType');
@@ -93,7 +137,8 @@ export const actions: Actions = {
 		const posterUrlRaw = form.get('posterUrl');
 
 		if (
-			typeof tmdbId !== 'string' ||
+			(source !== 'tmdb' && source !== 'tvdb') ||
+			typeof externalId !== 'string' ||
 			typeof title !== 'string' ||
 			(mediaType !== 'movie' && mediaType !== 'show')
 		) {
@@ -105,18 +150,33 @@ export const actions: Actions = {
 			typeof watchedAtRaw === 'string' && watchedAtRaw ? new Date(watchedAtRaw) : new Date();
 		const artworkUrl = typeof posterUrlRaw === 'string' && posterUrlRaw ? posterUrlRaw : null;
 
+		const idColumn = source === 'tmdb' ? mediaItems.tmdbId : mediaItems.tvdbId;
 		let mediaItem = await db.query.mediaItems.findFirst({
-			where: eq(mediaItems.tmdbId, tmdbId)
+			where: eq(idColumn, externalId)
 		});
 
 		if (!mediaItem) {
 			// Best-effort — a failed detail fetch shouldn't block logging the watch itself,
-			// it just means the detail page will be a little sparser for this item.
-			let details: Awaited<ReturnType<typeof getTmdbDetails>> = null;
+			// it just means the detail page will be a little sparser for this item. TVDB
+			// doesn't expose a tagline/backdrop in the same shape TMDb does (see
+			// `getTvdbDetails`), so those stay null for a TVDB-sourced item.
+			let details: {
+				tagline: string | null;
+				summary: string | null;
+				runtimeMinutes: number | null;
+				genres: string[];
+				backdropUrl: string | null;
+			} | null = null;
 			try {
-				details = await getTmdbDetails(tmdbId, mediaType);
+				if (source === 'tmdb') {
+					const d = await getTmdbDetails(externalId, mediaType);
+					details = d && { ...d };
+				} else {
+					const d = await getTvdbDetails(externalId);
+					details = d && { ...d, tagline: null, backdropUrl: null };
+				}
 			} catch (err) {
-				console.error('[history] failed to fetch TMDb details', err);
+				console.error(`[history] failed to fetch ${source} details`, err);
 			}
 
 			const [created] = await db
@@ -125,7 +185,8 @@ export const actions: Actions = {
 					type: mediaType as MediaType,
 					title,
 					year,
-					tmdbId,
+					tmdbId: source === 'tmdb' ? externalId : null,
+					tvdbId: source === 'tvdb' ? externalId : null,
 					artworkUrl,
 					backdropUrl: details?.backdropUrl ?? null,
 					tagline: details?.tagline ?? null,
