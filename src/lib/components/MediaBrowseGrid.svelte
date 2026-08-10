@@ -5,6 +5,8 @@
 	interface Item {
 		id: string;
 		title: string;
+		/** Recording artist — set on albums, null otherwise (see media_items.artist). */
+		artist?: string | null;
 		year: number | null;
 		plexThumb: string | null;
 		artworkUrl: string | null;
@@ -19,6 +21,11 @@
 		name: string;
 	}
 
+	interface SortOption {
+		value: BrowseSort;
+		label: string;
+	}
+
 	interface Props {
 		heading: string;
 		items: Item[];
@@ -30,6 +37,8 @@
 		square?: boolean;
 		/** Hides the watched action/badge and filter — for media types with no meaningful watch status (e.g. albums, where plays are tracked per-track, not per-album). */
 		showWatched?: boolean;
+		/** Overrides the default Title/Year/Recently added options — e.g. music swaps in Album/Artist. */
+		sortOptions?: SortOption[];
 		genres: string[];
 		watched: BrowseWatched | null;
 		availableGenres: string[];
@@ -37,6 +46,12 @@
 		totalPages: number;
 		myLists: ListOption[];
 	}
+
+	const defaultSortOptions: SortOption[] = [
+		{ value: 'title', label: 'Title (A–Z)' },
+		{ value: 'year', label: 'Year' },
+		{ value: 'added', label: 'Recently added' }
+	];
 
 	let {
 		heading,
@@ -47,6 +62,7 @@
 		emptyText,
 		square = false,
 		showWatched = true,
+		sortOptions = defaultSortOptions,
 		genres,
 		watched,
 		availableGenres,
@@ -94,9 +110,9 @@
 	<form method="GET" class="controls">
 		<input type="search" name="q" placeholder="Filter by title" value={search} />
 		<select name="sort" onchange={(event) => event.currentTarget.form?.requestSubmit()}>
-			<option value="title" selected={sort === 'title'}>Title (A–Z)</option>
-			<option value="year" selected={sort === 'year'}>Year</option>
-			<option value="added" selected={sort === 'added'}>Recently added</option>
+			{#each sortOptions as option (option.value)}
+				<option value={option.value} selected={sort === option.value}>{option.label}</option>
+			{/each}
 		</select>
 
 		{#if availableGenres.length > 0}
@@ -204,6 +220,7 @@
 				id={item.id}
 				title={item.title}
 				year={item.year}
+				meta={item.artist ?? undefined}
 				hasArtwork={!!(item.plexThumb || item.artworkUrl)}
 				watched={item.watched}
 				watchProgress={item.watchProgress ?? null}

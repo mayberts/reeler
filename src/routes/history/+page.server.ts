@@ -231,10 +231,7 @@ export const actions: Actions = {
 		const year = typeof yearRaw === 'string' && yearRaw ? Number(yearRaw) : null;
 		const watchedAt =
 			typeof watchedAtRaw === 'string' && watchedAtRaw ? new Date(watchedAtRaw) : new Date();
-		// MusicBrainz's own title field doesn't include the artist — folded in here (not
-		// stored as a separate column) the same way Reeler already has no artist concept
-		// for Plex-synced albums either, see DESIGN.md.
-		const fullTitle = typeof artist === 'string' && artist ? `${title} — ${artist}` : title;
+		const artistValue = typeof artist === 'string' && artist ? artist : null;
 
 		let mediaItem = await db.query.mediaItems.findFirst({
 			where: eq(mediaItems.musicbrainzId, musicbrainzId)
@@ -254,7 +251,8 @@ export const actions: Actions = {
 				.insert(mediaItems)
 				.values({
 					type: 'album',
-					title: fullTitle,
+					title,
+					artist: artistValue,
 					year,
 					musicbrainzId,
 					artworkUrl

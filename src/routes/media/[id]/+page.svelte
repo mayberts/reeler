@@ -89,6 +89,7 @@
 				{/if}
 
 				<div class="meta-row">
+					{#if item.artist}<span class="badge">{item.artist}</span>{/if}
 					{#if item.year}<span class="badge">{item.year}</span>{/if}
 					{#if runtime}<span class="badge">{runtime}</span>{/if}
 					{#if isShow && data.seasons.length > 0}

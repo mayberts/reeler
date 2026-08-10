@@ -13,6 +13,12 @@
 	emptyText="No albums yet — albums are added automatically the first time you play a track."
 	square
 	showWatched={false}
+	sortOptions={[
+		{ value: 'title', label: 'Album (A–Z)' },
+		{ value: 'artist', label: 'Artist (A–Z)' },
+		{ value: 'year', label: 'Year' },
+		{ value: 'added', label: 'Recently added' }
+	]}
 	genres={data.genres}
 	watched={data.watched}
 	availableGenres={data.availableGenres}

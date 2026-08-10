@@ -71,8 +71,8 @@ async function enrichSparseItem(item: PlexMetadataItem): Promise<PlexMetadataIte
  * watch history or a webhook (this function still handles a lazily-created episode too
  * — a webhook/history entry for a show not yet library-synced, say — the same way it
  * always has). Artists aren't modeled as their own row (nothing to "track" about an
- * artist itself); a track's `parentTitle` already carries the artist context via its
- * album.
+ * artist itself) — an album just carries its artist's name in its own `artist` column,
+ * read off Plex's `parentTitle` for the album (see `values` below).
  */
 export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promise<string | null> {
 	const type = PLEX_TYPE_TO_MEDIA_TYPE[rawItem.type];
@@ -111,6 +111,10 @@ export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promis
 	const values = {
 		type,
 		title: item.title,
+		// An album's own `parentTitle` is its artist (Plex's music hierarchy is
+		// Artist -> Album -> Track); tracks/episodes/seasons already use parentTitle for
+		// their own parent link above, so this only ever fires for albums.
+		artist: (type === 'album' ? item.parentTitle : undefined) ?? existing?.artist ?? null,
 		// A season/episode's parent-linking stub call only carries a ratingKey/title (see
 		// above) — for a show/movie/album that's already been fully synced, that stub
 		// re-upsert must not clobber the richer data already on file, so every other field
