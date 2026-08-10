@@ -138,11 +138,9 @@
 	.title {
 		font-size: 0.9rem;
 		font-weight: 700;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
-		-webkit-box-orient: vertical;
+		white-space: nowrap;
 		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 	.info-row {
 		display: flex;
