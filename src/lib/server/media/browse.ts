@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, inArray, like, notInArray, or } from 'drizzl
 import { db } from '$lib/server/db';
 import { mediaItems, watchHistory } from '$lib/server/db/schema';
 import type { MediaType } from '$lib/server/db/schema';
+import { getShowProgress } from './show-progress';
 
 export const browseSortValues = ['title', 'year', 'added'] as const;
 export type BrowseSort = (typeof browseSortValues)[number];
@@ -46,7 +47,29 @@ export async function browseMediaByType(type: MediaType, userId: string, filters
 		conditions.push(or(...genreConditions)!);
 	}
 
-	if (watched) {
+	if (watched && type === 'show') {
+		// A show's own watch_history rows aren't real data (see getShowProgress) — filter
+		// on actual episode completion instead: "watched" means every episode has been,
+		// "unwatched" means none have.
+		const candidates = await db
+			.select({ id: mediaItems.id })
+			.from(mediaItems)
+			.where(and(...conditions));
+		const progress = await getShowProgress(
+			userId,
+			candidates.map((c) => c.id)
+		);
+		const matchIds = candidates
+			.map((c) => c.id)
+			.filter((id) => {
+				const p = progress.get(id)!;
+				return watched === 'watched'
+					? p.totalEpisodes > 0 && p.watchedEpisodes >= p.totalEpisodes
+					: p.watchedEpisodes === 0;
+			});
+		if (matchIds.length === 0) return { items: [], total: 0, page: 1, totalPages: 1 };
+		conditions.push(inArray(mediaItems.id, matchIds));
+	} else if (watched) {
 		const watchedRows = await db
 			.selectDistinct({ id: watchHistory.mediaItemId })
 			.from(watchHistory)
@@ -83,6 +106,24 @@ export async function browseMediaByType(type: MediaType, userId: string, filters
 	});
 
 	const itemIds = rows.map((row) => row.id);
+
+	if (type === 'show') {
+		const progress = await getShowProgress(userId, itemIds);
+		return {
+			items: rows.map((row) => {
+				const p = progress.get(row.id) ?? { watchedEpisodes: 0, totalEpisodes: 0 };
+				return {
+					...row,
+					watched: p.totalEpisodes > 0 && p.watchedEpisodes >= p.totalEpisodes,
+					watchProgress: p.totalEpisodes > 0 ? p.watchedEpisodes / p.totalEpisodes : null
+				};
+			}),
+			total,
+			page: safePage,
+			totalPages
+		};
+	}
+
 	const watchedItemRows = itemIds.length
 		? await db
 				.selectDistinct({ id: watchHistory.mediaItemId })
@@ -92,7 +133,11 @@ export async function browseMediaByType(type: MediaType, userId: string, filters
 	const watchedIdSet = new Set(watchedItemRows.map((row) => row.id));
 
 	return {
-		items: rows.map((row) => ({ ...row, watched: watchedIdSet.has(row.id) })),
+		items: rows.map((row) => ({
+			...row,
+			watched: watchedIdSet.has(row.id),
+			watchProgress: null as number | null
+		})),
 		total,
 		page: safePage,
 		totalPages

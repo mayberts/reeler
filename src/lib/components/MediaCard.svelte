@@ -21,6 +21,12 @@
 		watched?: boolean;
 		/** Hides the watched action — for media types with no meaningful watch status (e.g. albums, where plays are tracked per-track, not per-album). */
 		showWatched?: boolean;
+		/** Real fraction watched (0-1), for shows — computed from actual episode watches,
+		 *  not the item's own watch_history rows (a show never gets one from real Plex
+		 *  playback, only its episodes do — see DESIGN.md). When set, the watched action
+		 *  becomes a read-only status (percent while partial) instead of a click-to-toggle,
+		 *  since a manual toggle on the show itself wouldn't affect this number at all. */
+		watchProgress?: number | null;
 		/** Square (1:1) artwork instead of the default 2:3 poster — album covers, not posters. */
 		square?: boolean;
 		/** Small badge in the info footer — pass on grids that mix media types (dashboard, history, ratings, lists). */
@@ -40,6 +46,7 @@
 		meta,
 		watched: initialWatched = false,
 		showWatched = true,
+		watchProgress = null,
 		square = false,
 		type,
 		myLists = [],
@@ -105,6 +112,11 @@
 					{:else}
 						<div class="placeholder" aria-hidden="true">{title.charAt(0).toUpperCase()}</div>
 					{/if}
+					{#if watchProgress !== null && watchProgress > 0 && watchProgress < 1}
+						<div class="progress-track">
+							<div class="progress-fill" style="width: {watchProgress * 100}%"></div>
+						</div>
+					{/if}
 				</div>
 			</a>
 			{#if overlay}
@@ -115,28 +127,52 @@
 		<div class="action-bar">
 			{#if showWatched}
 				<div class="action watched" class:active={watched}>
-					<button
-						type="button"
-						disabled={watchPending}
-						onclick={markWatched}
-						title={watched ? 'Watched' : 'Mark as watched'}
-					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle
-								cx="12"
-								cy="12"
-								r="3"
-								fill={watched ? 'currentColor' : 'none'}
-							/></svg
+					{#if watchProgress !== null}
+						{@const percent = Math.round(watchProgress * 100)}
+						<div
+							class="status"
+							title={watched ? 'Watched' : watchProgress > 0 ? `${percent}% watched` : 'Unwatched'}
 						>
-						<span>Watched</span>
-					</button>
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle
+									cx="12"
+									cy="12"
+									r="3"
+									fill={watched ? 'currentColor' : 'none'}
+								/></svg
+							>
+							<span>{watched ? 'Watched' : watchProgress > 0 ? `${percent}%` : 'Unwatched'}</span>
+						</div>
+					{:else}
+						<button
+							type="button"
+							disabled={watchPending}
+							onclick={markWatched}
+							title={watched ? 'Watched' : 'Mark as watched'}
+						>
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle
+									cx="12"
+									cy="12"
+									r="3"
+									fill={watched ? 'currentColor' : 'none'}
+								/></svg
+							>
+							<span>Watched</span>
+						</button>
+					{/if}
 				</div>
 			{/if}
 
@@ -273,6 +309,18 @@
 		font-weight: 600;
 		opacity: 0.35;
 	}
+	.progress-track {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 0.3rem;
+		background: rgba(0, 0, 0, 0.45);
+	}
+	.progress-fill {
+		height: 100%;
+		background: var(--accent);
+	}
 	.action-bar {
 		position: relative;
 		display: grid;
@@ -289,7 +337,8 @@
 		border-right: none;
 	}
 	.action button,
-	.action select {
+	.action select,
+	.action .status {
 		width: 100%;
 		height: 100%;
 		display: flex;
@@ -308,12 +357,16 @@
 		letter-spacing: 0.04em;
 		cursor: pointer;
 	}
+	.action .status {
+		cursor: default;
+	}
 	.action select {
 		font-size: 0.7rem;
 		text-transform: none;
 		letter-spacing: normal;
 	}
-	.action button svg {
+	.action button svg,
+	.action .status svg {
 		width: 0.9rem;
 		height: 0.9rem;
 	}
@@ -323,7 +376,8 @@
 		cursor: default;
 	}
 	.action.watched button:hover:not(:disabled),
-	.action.watched.active button {
+	.action.watched.active button,
+	.action.watched.active .status {
 		background: var(--success-bg);
 		color: var(--success);
 	}

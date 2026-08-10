@@ -967,6 +967,55 @@ after switching accent from amber to blue (contrast stays correct on
 both, since `accent.ink` is exactly the token already computed for
 this purpose), and holds up in dark mode.
 
+### Shows browse grid: real watched-% for partially-watched shows
+
+A user asked for a "watched %" on partially-watched shows in the
+`/shows` grid. Investigating turned up the same root cause already
+documented above for albums: a show's own `watched` boolean
+(`browseMediaByType` in `lib/server/media/browse.ts`) was computed
+from `watch_history` rows against the **show's own** `media_items.id`
+— and per the album fix's reasoning, that's never real data for a
+show either. Plex scrobbles fire per episode, never per show, so the
+only way a show's own row could exist was a stray `viewCount` sync
+quirk or the manual "mark as watched" click — neither means anything
+close to "% of episodes watched."
+
+Added `lib/server/media/show-progress.ts` (`getShowProgress`):
+distinct watched episodes ÷ total episodes per show, resolved via the
+same episode → season → show two-hop lookup already proven out in
+`stats/+page.server.ts` (episodes are always pre-synced in full for a
+library-synced show — see "Season pages" above — so the total is a
+plain DB count, no extra Plex calls). `browseMediaByType` now uses this
+for shows specifically: the returned `watched` boolean means "every
+episode watched" (was "this exact row has a watch_history entry"), and
+a new `watchProgress: number | null` carries the fractional value for
+display. The existing Watched/Unwatched filter got the same treatment
+— it used to inArray/notInArray against the show's own (bogus)
+watch_history rows; now it's "all episodes watched" /
+"zero episodes watched," computed against the real per-show ratio over
+whatever the search/genre filters already narrowed down to, so
+pagination and the total count stay correct.
+
+Since a show's own watch_history row isn't meaningful, the click-to-
+mark-watched button doesn't do anything real for a show either — it
+would write a row nothing reads. `MediaCard` gained a `watchProgress`
+prop: when set (only true for the shows grid), the watched action
+becomes a read-only status — "Watched" / "NN%" / "Unwatched" — instead
+of a button, and a thin progress-fill bar appears along the poster's
+bottom edge for any show strictly between 0% and 100%. Movies and
+albums are untouched — `watchProgress` stays `null` for them, so they
+keep the existing boolean toggle (movies) or stay hidden entirely
+(albums, `showWatched={false}` from the earlier fix).
+
+Verified against a seeded DB with four shows (fully watched, half
+watched, barely started, untouched): the grid showed "Watched" (green,
+no bar), "50%" (bar at half width), "8%" (1 of 12 episodes, thin bar),
+and "Unwatched" (no bar) respectively, matched in both light and dark
+mode; the Watched filter returned only the fully-watched show and the
+Unwatched filter returned only the untouched one, with the two partial
+shows correctly excluded from both; and the old "Mark as watched"
+button no longer renders on any show card. Typecheck/lint/build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
