@@ -1,6 +1,6 @@
-import { env } from '$env/dynamic/private';
+import { getAppSettings } from '$lib/server/settings';
 
-/** TMDb is optional — manual/non-Plex logging is just disabled without an API key set. */
-export function getTmdbApiKey(): string | null {
-	return env.TMDB_API_KEY || null;
+/** TMDb is optional — manual/non-Plex logging is just disabled without a token set. */
+export async function getTmdbReadAccessToken(): Promise<string | null> {
+	return (await getAppSettings()).tmdbReadAccessToken;
 }

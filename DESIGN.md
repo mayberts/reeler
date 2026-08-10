@@ -742,6 +742,76 @@ dev server) in both light and dark mode, including a hover
 interaction check on the new stacked-bar tooltip. Typecheck/lint/build
 clean.
 
+### Settings page (stage 1 of 3): DB-backed config, Plex + TMDB, display prefs
+
+A user asked for an in-app Settings page — modeled on a reference app's
+screenshot (masked credential fields with a show/hide toggle and a
+"test" button, a Save Changes button, a Display Settings section with
+toggles and an accent-color picker) — to configure TMDB/TVDB/MusicBrainz
+as metadata sources. Given up front that this was a 3-stage build (this
+stage: settings infrastructure + Plex/TMDB + display prefs; stage 2:
+TVDB fallback search; stage 3: MusicBrainz manual music logging), since
+TVDB and MusicBrainz had no integration in the codebase at all yet and
+building all three at once risked a single unreviewable, hard-to-verify
+change.
+
+Every config value Reeler has ever read from `.env`
+(`PLEX_SERVER_URL`/`PLEX_TOKEN`/`PLEX_WEBHOOK_TOKEN`/
+`PLEX_CLIENT_IDENTIFIER`/`TMDB_API_KEY`) moved onto a new singleton
+`app_settings` DB row (`lib/server/settings.ts`), editable from
+`/settings` (admin-only). Deliberately **not** a hard cutover: every
+field is nullable, and `getAppSettings()` falls back to the matching
+env var when a field is unset in the DB — so an existing `.env`-only
+deployment keeps working unchanged after upgrading, with Settings as an
+optional override layer rather than a migration every existing install
+would be forced through. `getPlexConfig()` also stopped throwing when a
+field is missing (it used to, via a `required()` helper) — each caller
+now checks only the field(s) it actually needs and fails there instead.
+That mattered concretely: Plex OAuth login only ever needed
+`clientIdentifier`, never `serverUrl`/`token`, but the old throw-on-any-
+missing-field shape meant login would have broken before an admin had
+configured the Plex server connection at all, the exact
+chicken-and-egg problem a login-gated Settings page would otherwise
+create.
+
+Also switched TMDb from a v3 `api_key` query param to a v4 Bearer Read
+Access Token (`Authorization: Bearer <token>`) — what the reference
+screenshot's "TMDB Read Access Token" field actually meant, and the
+modern recommended TMDb auth method. TMDb's `/authentication` endpoint
+made a natural validate-before-save check (accepts any credential, just
+reports whether it authenticated), used both by the Settings page's
+per-field "test" button and by the save action itself.
+
+Accent color is a real app-wide theme, not per-page decoration: `+layout
+.server.ts` reads it once (cheap, single indexed-PK row) and `+layout
+.svelte` sets `--accent`/`--accent-ink` as inline custom properties on
+the app's root wrapper, so every page inherits it through ordinary CSS
+cascade with no per-page plumbing. `--rate-bg` (previously a second,
+independently-hardcoded amber) was switched to `color-mix()` against
+`--accent` so the rating pill's active state tracks the chosen color
+too, instead of silently staying amber regardless of theme. Known,
+deliberate gap: the Stats page's rating-distribution histogram still
+uses a hardcoded amber — rewiring every chart color on that page to the
+live accent was out of scope for a Settings-page change and would
+dilute focus; left as a documented gap rather than a silent
+inconsistency.
+
+Verified end-to-end against a seeded SQLite DB with **no** `PLEX_*`/
+`TMDB_API_KEY` env vars set at all except `PLEX_CLIENT_IDENTIFIER`
+(confirming the no-chicken-and-egg claim structurally, not just by
+reading the code): the app booted clean, background sync logged
+"Plex server is not configured" and moved on rather than crashing,
+`/login`'s pin-creation endpoint failed gracefully (502) rather than
+throwing, and `/settings` correctly showed each field's env/db/unset
+source. Via a real browser (Playwright): saved an unreachable Plex
+server + fake token and confirmed the save was rejected _and nothing
+was written to the DB_ (checked directly), tested a garbage TMDB token
+and got a live, correct rejection from TMDb's own API, clicked through
+all 7 accent colors and the 24-hour toggle and confirmed both persisted
+across a reload, and confirmed a non-admin account gets a 403 from both
+the page and the underlying test-credential API routes and never sees
+the nav link. Typecheck/lint/build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
@@ -775,15 +845,26 @@ clean.
    fix log above. (Unraid Community Apps packaging dropped — not
    needed, see Deployment above.)
 
-All four original roadmap phases are done. Nothing currently queued —
-next work should come from actual usage, not a pre-written plan.
+All four original roadmap phases are done.
+
+5. 🚧 In-app Settings page (admin-only), replacing `.env`-only config.
+   Stage 1 done: DB-backed settings with env-var fallback, Plex
+   connection + TMDB (now v4 Bearer token) editable and validated from
+   the UI, accent-color theming and a 24-hour time toggle — see the fix
+   log above. Queued next: stage 2 (a real TVDB client, used as a
+   fallback when manually searching for a show TMDb doesn't have) and
+   stage 3 (a MusicBrainz client and a new manual-music-logging flow,
+   parallel to the existing TMDb-backed movie/TV one). The Settings
+   page already has TVDB/MusicBrainz-shaped fields wired up; those two
+   stages make them actually do something beyond being saved.
 
 ## Open questions
 
 - Final project name (currently "Reeler", working title only).
-- MusicBrainz/Last.fm choice for manually-logging music specifically
-  (TMDb doesn't cover music) is still unresolved — not needed yet since
-  manual logging only covers movies/TV so far.
+- ~~MusicBrainz/Last.fm choice for manually-logging music~~ — resolved:
+  MusicBrainz, no API key needed (unlike TMDb/TVDB). The actual
+  manual-music-logging UI isn't built yet — that's roadmap phase 5,
+  stage 3.
 - ~~Whether household member linking needs explicit admin approval~~ —
   resolved for now: any Plex account that completes the OAuth sign-in
   auto-links to a new Reeler account, first one in becomes admin. No

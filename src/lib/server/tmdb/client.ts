@@ -1,10 +1,26 @@
-import { getTmdbApiKey } from './config';
+import { getTmdbReadAccessToken } from './config';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 // TMDb's image CDN is public — no API key/auth needed to fetch from it, so unlike Plex
 // posters, these can be linked to directly from the client.
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w342';
 const TMDB_BACKDROP_BASE = 'https://image.tmdb.org/t/p/w1280';
+
+/** Checks a v4 Read Access Token is actually valid, for the Settings page's test button
+ *  and for validating before saving — TMDb's `/authentication` endpoint accepts any
+ *  credential and just reports whether it authenticated. */
+export async function verifyTmdbToken(token: string): Promise<boolean> {
+	try {
+		const response = await fetch(`${TMDB_BASE}/authentication`, {
+			headers: { Authorization: `Bearer ${token}` }
+		});
+		if (!response.ok) return false;
+		const data = (await response.json()) as { success?: boolean };
+		return data.success === true;
+	} catch {
+		return false;
+	}
+}
 
 export interface TmdbSearchResult {
 	tmdbId: string;
@@ -40,14 +56,13 @@ function parseYear(dateStr: string | undefined): number | null {
  * configured — the feature is just unavailable, not a hard failure.
  */
 export async function searchTmdb(query: string): Promise<TmdbSearchResult[]> {
-	const apiKey = getTmdbApiKey();
-	if (!apiKey) return [];
+	const token = await getTmdbReadAccessToken();
+	if (!token) return [];
 
 	const url = new URL(`${TMDB_BASE}/search/multi`);
-	url.searchParams.set('api_key', apiKey);
 	url.searchParams.set('query', query);
 
-	const response = await fetch(url);
+	const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 	if (!response.ok) {
 		throw new Error(`TMDb search failed: ${response.status} ${response.statusText}`);
 	}
@@ -93,14 +108,13 @@ export async function getTmdbDetails(
 	tmdbId: string,
 	mediaType: 'movie' | 'show'
 ): Promise<TmdbDetails | null> {
-	const apiKey = getTmdbApiKey();
-	if (!apiKey) return null;
+	const token = await getTmdbReadAccessToken();
+	if (!token) return null;
 
 	const path = mediaType === 'movie' ? 'movie' : 'tv';
 	const url = new URL(`${TMDB_BASE}/${path}/${tmdbId}`);
-	url.searchParams.set('api_key', apiKey);
 
-	const response = await fetch(url);
+	const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 	if (!response.ok) {
 		throw new Error(`TMDb details fetch failed: ${response.status} ${response.statusText}`);
 	}

@@ -12,14 +12,31 @@
 		watchedAt: Date;
 		source: string;
 		rating: number | null;
+		/** Matches the "24-hour time format" Settings toggle — defaults to the locale's own
+		 *  convention (typically 12-hour in en-US) when not explicitly set. */
+		twentyFourHourTime?: boolean;
 	}
 
-	let { entryId, mediaItemId, title, year, type, hasArtwork, watchedAt, source, rating }: Props =
-		$props();
+	let {
+		entryId,
+		mediaItemId,
+		title,
+		year,
+		type,
+		hasArtwork,
+		watchedAt,
+		source,
+		rating,
+		twentyFourHourTime = false
+	}: Props = $props();
 
 	const posterSrc = $derived(hasArtwork ? `/api/media/${mediaItemId}/poster` : null);
 	const timeLabel = $derived(
-		watchedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+		watchedAt.toLocaleTimeString([], {
+			hour: 'numeric',
+			minute: '2-digit',
+			hour12: !twentyFourHourTime
+		})
 	);
 
 	let removed = $state(false);

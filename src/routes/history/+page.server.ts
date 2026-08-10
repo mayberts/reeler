@@ -3,7 +3,7 @@ import { eq, desc, and, or, count } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { watchHistory, mediaItems, ratings, type MediaType } from '$lib/server/db/schema';
 import { searchTmdb, getTmdbDetails } from '$lib/server/tmdb/client';
-import { getTmdbApiKey } from '$lib/server/tmdb/config';
+import { getTmdbReadAccessToken } from '$lib/server/tmdb/config';
 import { getOwnedLists } from '$lib/server/lists';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -61,7 +61,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
 	const logQuery = url.searchParams.get('logQuery')?.trim() ?? '';
-	const logResults = logQuery ? await searchTmdb(logQuery) : [];
+	const [logResults, tmdbToken] = await Promise.all([
+		logQuery ? searchTmdb(logQuery) : Promise.resolve([]),
+		getTmdbReadAccessToken()
+	]);
 
 	return {
 		history: rows,
@@ -71,7 +74,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		typeFilter,
 		logQuery,
 		logResults,
-		tmdbEnabled: getTmdbApiKey() !== null,
+		tmdbEnabled: tmdbToken !== null,
 		myLists
 	};
 };

@@ -6,7 +6,7 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async () => {
 	try {
 		const pin = await createPin();
-		return json({ id: pin.id, authUrl: buildAuthUrl(pin) });
+		return json({ id: pin.id, authUrl: await buildAuthUrl(pin) });
 	} catch (err) {
 		console.error('[login] failed to create Plex pin', err);
 		return json({ error: 'plex_unreachable' }, { status: 502 });

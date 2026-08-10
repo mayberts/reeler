@@ -5,7 +5,8 @@ import { getPlexConfig } from './config';
  * requesting `application/json` via the Accept header gets JSON instead.
  */
 async function plexFetch<T>(path: string, params: Record<string, string> = {}): Promise<T> {
-	const { serverUrl, token } = getPlexConfig();
+	const { serverUrl, token } = await getPlexConfig();
+	if (!serverUrl || !token) throw new Error('Plex server is not configured');
 	const url = new URL(path, serverUrl);
 	for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
 	url.searchParams.set('X-Plex-Token', token);
@@ -15,6 +16,20 @@ async function plexFetch<T>(path: string, params: Record<string, string> = {}): 
 		throw new Error(`Plex API request failed: ${response.status} ${response.statusText} (${path})`);
 	}
 	return response.json() as Promise<T>;
+}
+
+/** Validates a server URL + token pair against the actual server — for the Settings
+ *  page's test button and pre-save validation. Takes explicit args rather than reading
+ *  the configured settings, since it's meant to check values before they're saved. */
+export async function verifyPlexConnection(serverUrl: string, token: string): Promise<boolean> {
+	try {
+		const url = new URL('/library/sections', serverUrl);
+		url.searchParams.set('X-Plex-Token', token);
+		const response = await fetch(url, { headers: { Accept: 'application/json' } });
+		return response.ok;
+	} catch {
+		return false;
+	}
 }
 
 /** Library sections (movies/shows/music) configured on the server. */
@@ -84,7 +99,8 @@ export function listServerAccounts() {
  * an in-app rating change back so Plex stays in sync.
  */
 export async function rateMedia(ratingKey: string, rating: number): Promise<void> {
-	const { serverUrl, token } = getPlexConfig();
+	const { serverUrl, token } = await getPlexConfig();
+	if (!serverUrl || !token) throw new Error('Plex server is not configured');
 	const url = new URL('/:/rate', serverUrl);
 	url.searchParams.set('key', ratingKey);
 	url.searchParams.set('identifier', 'com.plexapp.plugins.library');
