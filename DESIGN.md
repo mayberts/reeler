@@ -947,6 +947,26 @@ failing the log, and confirmed find-or-create idempotency on a second
 log of the same album (one `media_items` row, two `watch_history`
 rows). Typecheck/lint/build clean.
 
+### First real logo/favicon
+
+Reeler shipped every session before this one with SvelteKit's own
+default favicon (`svelte-logo`) — never replaced. Picked a mark after
+reviewing several concepts with the user (a rounded amber badge, a
+play triangle resolving into three wave bars — movies and music in
+one silhouette) and shipped it as both the static favicon
+(`lib/assets/favicon.svg`, fixed brand color regardless of in-app
+theme) and an inline nav mark next to the "Reeler" wordmark. The nav
+version isn't a static copy: it reads `accent.hex`/`accent.ink` from
+the same `ACCENT_COLORS` map the Settings page's accent picker already
+uses, so the badge and its cutout recolor correctly for whichever of
+the 7 accents a household has chosen, the same way every other
+accent-colored element in the app already does — rather than being a
+fixed amber mark that would clash the moment someone picks a different
+accent. Verified in a real browser: the nav mark recolors correctly
+after switching accent from amber to blue (contrast stays correct on
+both, since `accent.ink` is exactly the token already computed for
+this purpose), and holds up in dark mode.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
