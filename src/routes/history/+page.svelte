@@ -20,12 +20,13 @@
 				year={entry.mediaItem.year}
 				hasArtwork={!!(entry.mediaItem.plexThumb || entry.mediaItem.artworkUrl)}
 				meta="{entry.source} · {entry.watchedAt.toLocaleDateString()}"
+				type={entry.mediaItem.type}
 			/>
 		{/each}
 	</div>
 {/if}
 
-<h2>Log something not in Plex</h2>
+<h2 class="section-headline">Log something not in Plex</h2>
 
 {#if !data.tmdbEnabled}
 	<p class="hint">
@@ -51,7 +52,12 @@
 			<div class="card-grid">
 				{#each data.logResults as result (result.tmdbId)}
 					<div class="result">
-						<MediaCard title={result.title} year={result.year} posterUrl={result.posterUrl} />
+						<MediaCard
+							title={result.title}
+							year={result.year}
+							posterUrl={result.posterUrl}
+							type={result.mediaType}
+						/>
 						<form method="POST" action="?/logManual" use:enhance>
 							<input type="hidden" name="tmdbId" value={result.tmdbId} />
 							<input type="hidden" name="title" value={result.title} />

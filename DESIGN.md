@@ -212,6 +212,39 @@ exactly: albums (like movies/shows) are worth browsing before you've
 listened to anything, tracks (like episodes) aren't worth mirroring up
 front — they're still created lazily from play history/webhooks only.
 
+### UI restyle: Scrob-inspired
+
+Reworked the visual language after comparing against [Scrob](https://github.com/ellite/scrob)
+(an open-source self-hosted tracker with a similar scope, forked as
+`mayberts/scrob` for reference) — Reeler's data model, sync engine, and
+Plex-only focus stay as-is, this only changes how it looks:
+
+- Dark-first zinc palette (`--surface`/`--surface-raised`/`--border`
+  tokens now mirror Scrob's zinc-950/900/800 scale) with matching light
+  values, still driven by `light-dark()` — no separate theme toggle.
+  Kept Reeler's amber accent (`--accent: #e5a00d`) rather than adopting
+  Scrob's blue default; it already read as a deliberate nod to Plex's
+  own brand color.
+- Bigger border radius (`--radius: 1rem`) and a `MediaCard` rebuilt
+  around Scrob's card: bordered, hover lift + accent-colored border
+  glow, poster zoom on hover, gradient-free flat info footer with a
+  small uppercase type badge (movie/show/album/etc — shown wherever a
+  grid mixes types: dashboard, history, ratings, lists; omitted on the
+  single-type `/movies`/`/shows`/`/music` grids where it'd be
+  redundant).
+- `section-headline` utility (bold text + a small colored accent bar)
+  applied to the app's recurring section headers (Recent activity,
+  Overview, Most watched, etc.), matching Scrob's typography system.
+- The detail page's action pills became a small colored action bar
+  (green/watched, amber/rated) with inline stroke icons, echoing
+  Scrob's `CardActionBar` color coding — adapted rather than copied,
+  since Reeler's actions need inline controls (a rating number input, a
+  list `<select>`) that Scrob's simpler toggle buttons don't.
+
+Verified visually with Playwright screenshots (dashboard, `/movies`,
+and a detail page, both color schemes) against seeded sample data,
+alongside the usual typecheck/lint/build pass.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

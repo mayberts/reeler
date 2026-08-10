@@ -15,6 +15,8 @@
 		watched?: boolean;
 		/** Square (1:1) artwork instead of the default 2:3 poster — album covers, not posters. */
 		square?: boolean;
+		/** Small badge in the info footer — pass on grids that mix media types (dashboard, history, ratings, lists). */
+		type?: string;
 	}
 
 	let {
@@ -25,7 +27,8 @@
 		posterUrl = null,
 		meta,
 		watched = false,
-		square = false
+		square = false,
+		type
 	}: Props = $props();
 
 	const imgSrc = $derived(posterUrl ?? (hasArtwork && id ? `/api/media/${id}/poster` : null));
@@ -44,9 +47,10 @@
 	</div>
 	<div class="info">
 		<span class="title">{title}</span>
-		{#if year || meta}
+		<div class="info-row">
 			<span class="sub">{year ?? ''}{year && meta ? ' · ' : ''}{meta ?? ''}</span>
-		{/if}
+			{#if type}<span class="type-badge">{type}</span>{/if}
+		</div>
 	</div>
 {/snippet}
 
@@ -60,46 +64,60 @@
 	.card {
 		display: flex;
 		flex-direction: column;
-		gap: 0.4rem;
 		width: 100%;
+		border-radius: var(--radius);
+		overflow: hidden;
+		background: var(--surface-raised);
+		border: 1px solid var(--border);
 		color: inherit;
 		text-decoration: none;
+		transition:
+			border-color 0.2s ease,
+			box-shadow 0.2s ease,
+			transform 0.2s ease;
 	}
-	a.card:hover .poster {
-		outline: 2px solid var(--border-strong);
-		outline-offset: 1px;
+	a.card:hover {
+		border-color: var(--accent);
+		box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.45);
+		transform: translateY(-3px);
+	}
+	a.card:active {
+		transform: scale(0.97);
 	}
 	.poster {
 		position: relative;
 		aspect-ratio: 2 / 3;
-		border-radius: 0.4rem;
 		overflow: hidden;
 		background: light-dark(#e5e4df, #232322);
 	}
 	.poster.square {
 		aspect-ratio: 1 / 1;
 	}
-	.watched-badge {
-		position: absolute;
-		top: 0.35rem;
-		right: 0.35rem;
-		width: 1.25rem;
-		height: 1.25rem;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 0.7rem;
-		font-weight: 700;
-		border-radius: 50%;
-		background: var(--success);
-		color: var(--accent-ink);
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-	}
 	.poster img {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
 		display: block;
+		transition: transform 0.4s ease;
+	}
+	a.card:hover .poster img {
+		transform: scale(1.06);
+	}
+	.watched-badge {
+		position: absolute;
+		top: 0.4rem;
+		right: 0.4rem;
+		width: 1.4rem;
+		height: 1.4rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0.75rem;
+		font-weight: 700;
+		border-radius: 50%;
+		background: var(--success);
+		color: var(--accent-ink);
+		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 	}
 	.placeholder {
 		width: 100%;
@@ -114,19 +132,37 @@
 	.info {
 		display: flex;
 		flex-direction: column;
-		gap: 0.1rem;
+		gap: 0.3rem;
+		padding: 0.65rem 0.75rem 0.75rem;
 	}
 	.title {
 		font-size: 0.9rem;
-		font-weight: 600;
+		font-weight: 700;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
 		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
+	.info-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.4rem;
+	}
 	.sub {
 		font-size: 0.75rem;
-		opacity: 0.6;
+		color: var(--ink-muted);
+	}
+	.type-badge {
+		font-size: 0.6rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		padding: 0.15rem 0.4rem;
+		border-radius: 999px;
+		background: var(--border);
+		color: var(--ink-muted);
+		flex-shrink: 0;
 	}
 </style>

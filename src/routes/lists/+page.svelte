@@ -25,7 +25,7 @@
 	</ul>
 {/if}
 
-<h2>New list</h2>
+<h2 class="section-headline">New list</h2>
 <form method="POST" action="?/create" use:enhance>
 	<input type="text" name="name" placeholder="List name" required />
 	<input type="text" name="description" placeholder="Description (optional)" />

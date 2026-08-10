@@ -51,7 +51,7 @@
 </div>
 
 {#if data.byType.length > 0}
-	<h2>By type</h2>
+	<h2 class="section-headline">By type</h2>
 	<ul class="by-type">
 		{#each data.byType as row (row.type)}
 			<li>
@@ -62,7 +62,7 @@
 	</ul>
 {/if}
 
-<h2>Activity, last 12 months</h2>
+<h2 class="section-headline">Activity, last 12 months</h2>
 <svg
 	viewBox="0 0 {CHART_W} {CHART_H}"
 	class="chart"
@@ -112,7 +112,7 @@
 
 <div class="lists">
 	<div>
-		<h2>Most watched</h2>
+		<h2 class="section-headline">Most watched</h2>
 		{#if data.topWatched.length === 0}
 			<p class="empty">Nothing yet.</p>
 		{:else}
@@ -127,7 +127,7 @@
 		{/if}
 	</div>
 	<div>
-		<h2>Top rated</h2>
+		<h2 class="section-headline">Top rated</h2>
 		{#if data.topRated.length === 0}
 			<p class="empty">Nothing rated yet.</p>
 		{:else}

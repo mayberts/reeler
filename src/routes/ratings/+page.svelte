@@ -19,7 +19,7 @@
 
 {#if data.query}
 	<section>
-		<h2>Results for "{data.query}"</h2>
+		<h2 class="section-headline">Results for "{data.query}"</h2>
 		{#if data.searchResults.length === 0}
 			<p class="empty">No matches.</p>
 		{:else}
@@ -31,6 +31,7 @@
 							title={item.title}
 							year={item.year}
 							hasArtwork={!!(item.plexThumb || item.artworkUrl)}
+							type={item.type}
 						/>
 						<form method="POST" action="?/rate" use:enhance>
 							<input type="hidden" name="mediaItemId" value={item.id} />
@@ -45,7 +46,7 @@
 {/if}
 
 <section>
-	<h2>Your ratings</h2>
+	<h2 class="section-headline">Your ratings</h2>
 	{#if data.ratings.length === 0}
 		<p class="empty">Nothing rated yet — search above to rate something.</p>
 	{:else}
@@ -57,6 +58,7 @@
 						title={rating.mediaItem.title}
 						year={rating.mediaItem.year}
 						hasArtwork={!!(rating.mediaItem.plexThumb || rating.mediaItem.artworkUrl)}
+						type={rating.mediaItem.type}
 					/>
 					<form method="POST" action="?/rate" use:enhance>
 						<input type="hidden" name="mediaItemId" value={rating.mediaItemId} />

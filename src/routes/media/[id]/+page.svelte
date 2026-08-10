@@ -62,14 +62,47 @@
 				{#if data.myRating !== null}<span class="badge rating">★ {data.myRating}/10</span>{/if}
 			</div>
 
-			<div class="pills">
+			<div class="action-bar">
 				<form method="POST" action="?/markWatched" use:enhance>
-					<button type="submit" class="pill watched">
-						👁 Watched{data.watchCount > 0 ? ` · ${data.watchCount}` : ''}
+					<button type="submit" class="pill watched" class:active={data.watchCount > 0}>
+						<svg
+							class="icon"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle
+								cx="12"
+								cy="12"
+								r="3"
+								fill={data.watchCount > 0 ? 'currentColor' : 'none'}
+							/></svg
+						>
+						Watched{data.watchCount > 0 ? ` · ${data.watchCount}` : ''}
 					</button>
 				</form>
 
-				<form method="POST" action="?/rate" use:enhance class="pill rate-pill">
+				<form
+					method="POST"
+					action="?/rate"
+					use:enhance
+					class="pill rate-pill"
+					class:active={data.myRating !== null}
+				>
+					<svg
+						class="icon"
+						viewBox="0 0 24 24"
+						fill={data.myRating !== null ? 'currentColor' : 'none'}
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						><polygon
+							points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+						/></svg
+					>
 					<input
 						type="number"
 						name="value"
@@ -79,17 +112,37 @@
 						value={data.myRating ?? ''}
 						placeholder="Rate"
 					/>
-					<button type="submit">Rate</button>
+					<button type="submit">Save</button>
 				</form>
 
 				{#if data.myLists.length > 0}
 					<form method="POST" action="?/addToList" use:enhance class="pill list-pill">
+						<svg
+							class="icon"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line
+								x1="8"
+								y1="18"
+								x2="21"
+								y2="18"
+							/><line x1="3" y1="6" x2="3.01" y2="6" /><line
+								x1="3"
+								y1="12"
+								x2="3.01"
+								y2="12"
+							/><line x1="3" y1="18" x2="3.01" y2="18" /></svg
+						>
 						<select name="listId">
 							{#each data.myLists as list (list.id)}
 								<option value={list.id}>{list.name}</option>
 							{/each}
 						</select>
-						<button type="submit">Add to list</button>
+						<button type="submit">Add</button>
 					</form>
 				{/if}
 			</div>
@@ -105,7 +158,7 @@
 </div>
 
 {#if item.summary}
-	<h2>Overview</h2>
+	<h2 class="section-headline">Overview</h2>
 	<p class="summary">{item.summary}</p>
 {/if}
 
@@ -219,41 +272,68 @@
 		color: var(--accent);
 		border-color: var(--accent);
 	}
-	.pills {
+	.action-bar {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.6rem;
 	}
-	.pill {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
+	.icon {
+		width: 1rem;
+		height: 1rem;
+		flex-shrink: 0;
 	}
 	.pill.watched {
-		background: var(--success);
-		border: 1px solid var(--success);
-		color: var(--accent-ink);
-		font-weight: 600;
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		background: var(--surface-raised);
+		border: 1px solid var(--border-strong);
+		color: var(--ink-secondary);
+		font-weight: 700;
+		padding: 0.5rem 0.9rem;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease,
+			color 0.15s ease;
+	}
+	.pill.watched:hover {
+		border-color: var(--success);
+		color: var(--success);
+	}
+	.pill.watched.active {
+		background: var(--success-bg);
+		border-color: var(--success);
+		color: var(--success);
 	}
 	.rate-pill,
 	.list-pill {
+		align-items: center;
+		gap: 0.4rem;
 		background: var(--surface-raised);
 		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-sm);
-		padding: 0.15rem 0.15rem 0.15rem 0.6rem;
+		padding: 0.15rem 0.15rem 0.15rem 0.65rem;
+		color: var(--ink-muted);
+	}
+	.rate-pill.active {
+		background: var(--rate-bg);
+		border-color: var(--accent);
+		color: var(--accent);
 	}
 	.rate-pill input {
 		width: 3rem;
 		border: none;
 		background: none;
 		padding: 0.2rem;
+		color: var(--ink-primary);
 	}
 	.list-pill select {
 		border: none;
 		background: none;
 		max-width: 9rem;
+		color: var(--ink-primary);
 	}
-	.pills button {
+	.action-bar button {
 		padding: 0.35rem 0.7rem;
 	}
 	.last-watched {

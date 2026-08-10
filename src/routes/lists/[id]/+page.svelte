@@ -32,6 +32,7 @@
 					title={item.mediaItem.title}
 					year={item.mediaItem.year}
 					hasArtwork={!!(item.mediaItem.plexThumb || item.mediaItem.artworkUrl)}
+					type={item.mediaItem.type}
 				/>
 				{#if data.isOwner}
 					<form method="POST" action="?/removeItem" use:enhance>
@@ -45,7 +46,7 @@
 {/if}
 
 {#if data.isOwner}
-	<h2>Add to this list</h2>
+	<h2 class="section-headline">Add to this list</h2>
 	<form class="search" method="GET">
 		<input type="search" name="q" placeholder="Search your library…" value={data.query} />
 		<button type="submit">Search</button>
@@ -63,6 +64,7 @@
 							title={item.title}
 							year={item.year}
 							hasArtwork={!!(item.plexThumb || item.artworkUrl)}
+							type={item.type}
 						/>
 						<form method="POST" action="?/addItem" use:enhance>
 							<input type="hidden" name="mediaItemId" value={item.id} />

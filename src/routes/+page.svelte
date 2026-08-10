@@ -53,7 +53,7 @@
 	<p class="sync-error">{form.message}</p>
 {/if}
 
-<h2>Recent activity</h2>
+<h2 class="section-headline">Recent activity</h2>
 {#if data.recentHistory.length === 0}
 	<p class="empty">
 		Nothing watched yet — run a sync above once your Plex account has some history.
@@ -67,6 +67,7 @@
 				year={entry.mediaItem.year}
 				hasArtwork={!!(entry.mediaItem.plexThumb || entry.mediaItem.artworkUrl)}
 				meta={entry.watchedAt.toLocaleDateString()}
+				type={entry.mediaItem.type}
 			/>
 		{/each}
 	</div>

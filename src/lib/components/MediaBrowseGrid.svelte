@@ -25,17 +25,22 @@
 	let { heading, items, total, search, sort, emptyText, square = false }: Props = $props();
 </script>
 
-<h1>{heading} <span class="count">{total.toLocaleString()} total</span></h1>
+<div class="header-row">
+	<div class="heading">
+		<h1>{heading}</h1>
+		<span class="count">{total.toLocaleString()} total</span>
+	</div>
 
-<form method="GET" class="controls">
-	<input type="search" name="q" placeholder="Filter by title" value={search} />
-	<select name="sort" onchange={(event) => event.currentTarget.form?.requestSubmit()}>
-		<option value="title" selected={sort === 'title'}>Title (A–Z)</option>
-		<option value="year" selected={sort === 'year'}>Year</option>
-		<option value="added" selected={sort === 'added'}>Recently added</option>
-	</select>
-	<button type="submit">Filter</button>
-</form>
+	<form method="GET" class="controls">
+		<input type="search" name="q" placeholder="Filter by title" value={search} />
+		<select name="sort" onchange={(event) => event.currentTarget.form?.requestSubmit()}>
+			<option value="title" selected={sort === 'title'}>Title (A–Z)</option>
+			<option value="year" selected={sort === 'year'}>Year</option>
+			<option value="added" selected={sort === 'added'}>Recently added</option>
+		</select>
+		<button type="submit" class="primary">Filter</button>
+	</form>
+</div>
 
 {#if items.length === 0}
 	<p class="empty">{search ? `No matches for "${search}".` : emptyText}</p>
@@ -55,17 +60,28 @@
 {/if}
 
 <style>
-	h1 {
+	.header-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 2rem;
+	}
+	.heading {
 		display: flex;
 		align-items: baseline;
 		gap: 0.6rem;
 	}
+	.heading h1 {
+		margin: 0;
+	}
 	.count {
 		font-size: 0.9rem;
-		font-weight: 400;
+		font-weight: 600;
 		color: var(--ink-muted);
 	}
-	.controls {
-		margin-bottom: 0.5rem;
+	.controls input[type='search'] {
+		min-width: 12rem;
 	}
 </style>
