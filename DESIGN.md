@@ -897,6 +897,56 @@ the amber warning with the corrected copy, and confirmed a genuinely
 unset field still shows the original muted, non-alarming hint (the two
 states are visually distinct, not just textually). Typecheck/lint/build clean.
 
+### Settings page (stage 3 of 3): MusicBrainz manual music logging
+
+The last open item from the original scoping doc's open questions:
+MusicBrainz/Last.fm for manually-logged music was unresolved since
+manual logging only ever covered movies/TV. This stage resolves it —
+MusicBrainz, no Last.fm — and builds the manual music-logging flow
+that never existed: a new `lib/server/musicbrainz/client.ts`
+(`searchMusicBrainz`, `getMusicBrainzDetails`) and a parallel
+"Log music not in Plex" section on the History page, alongside (not
+replacing) the existing TMDb/TVDB-backed movie/TV one.
+
+MusicBrainz needs no API key — its core API is free and keyless,
+just rate-limited (1 req/sec unauthenticated) and identified by a
+descriptive `User-Agent` header instead, which the client sets on
+every request per MusicBrainz's own API etiquette. That makes the new
+section unconditionally available, unlike the movie/TV one which
+gates on a TMDb/TVDB key being configured.
+
+Search results intentionally don't carry cover art — MusicBrainz
+itself hosts no images; Cover Art Archive does, keyed by the same
+release-group MBID, but fetching it for every row in a result list
+would mean one extra request per result. Cover art is instead looked
+up once, best-effort, at log time only (mirroring the existing
+"fetch full details when actually logging, not when just searching"
+pattern from the TMDb/TVDB paths) — and a release having no art on
+file at all is common, not an error, so search results show a plain
+letter-placeholder poster rather than a real cover, until logged.
+
+Scoped to albums (`primarytype:album` in the MusicBrainz query, same
+as how release-groups are the standard "album" concept there) —
+matches Reeler's existing album-is-the-loggable-unit design (tracks
+stay lazy, created from play history the same way episodes are).
+MusicBrainz's own title field doesn't include the artist, and Reeler
+has no artist concept for Plex-synced albums either (see the Data
+model section above), so the artist is folded into the stored title
+(`Album — Artist`) rather than adding a schema column for a single
+manual-entry path to use.
+
+Verified the same way as stage 2 (this sandbox has no outbound access
+to `musicbrainz.org`/`coverartarchive.org` either): a temporary fetch
+mock, reverted before committing, exercising the real route code
+through the actual dev server and a real browser. Confirmed a search
+result renders and logs correctly (right `musicbrainzId`, artist
+folded into the title, cover art picked up from a mocked Cover Art
+Archive response), confirmed the _other_ common case — no cover art
+on file (mocked 404) — degrades to a null `artworkUrl` rather than
+failing the log, and confirmed find-or-create idempotency on a second
+log of the same album (one `media_items` row, two `watch_history`
+rows). Typecheck/lint/build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
@@ -916,10 +966,10 @@ states are visually distinct, not just textually). Typecheck/lint/build clean.
    actually been played); tracks stay lazy, created from play
    history/webhooks the same way episodes are, since a track list isn't
    worth mirroring up front just to track what's been listened to.
-   Manual logging searches TMDb (movies/TV only — MusicBrainz/Last.fm
-   for manually-logged music is still open, see below) and is optional:
-   the app runs fine with no `TMDB_API_KEY` set, that section of the UI
-   just says so instead of the search box.
+   Manual logging searches TMDb/TVDB (movies/TV) and is optional there:
+   the app runs fine with no key set, that section of the UI just says
+   so instead of the search box. Manual music logging (MusicBrainz) is
+   unconditional — no key needed — see roadmap phase 5, stage 3.
 4. ✅ Stats page: hero tiles, activity/watch-time charts, genre
    breakdowns, rating distribution, day-of-week activity, and a
    Collection section with watched/unwatched donuts — covering movies,
@@ -932,24 +982,24 @@ states are visually distinct, not just textually). Typecheck/lint/build clean.
 
 All four original roadmap phases are done.
 
-5. 🚧 In-app Settings page (admin-only), replacing `.env`-only config.
-   Stage 1 done: DB-backed settings with env-var fallback, Plex
-   connection + TMDB (now v4 Bearer token) editable and validated from
-   the UI, accent-color theming and a 24-hour time toggle. Stage 2
-   done: a real TVDB client, used as a fallback when manually searching
-   for a show TMDb doesn't have — see the fix log above for both.
-   Queued next: stage 3 (a MusicBrainz client and a new
-   manual-music-logging flow, parallel to the existing TMDb/TVDB-backed
-   movie/TV one). The Settings page already has a MusicBrainz-shaped
-   hint; this stage makes it actually do something.
+5. ✅ In-app Settings page (admin-only), replacing `.env`-only config.
+   DB-backed settings with env-var fallback; Plex connection and TMDB
+   (v4 Bearer token) editable and validated from the UI; accent-color
+   theming and a 24-hour time toggle; a real TVDB client used as a
+   fallback when manually searching for a show TMDb doesn't have; a
+   MusicBrainz client and manual-music-logging flow, parallel to the
+   existing TMDb/TVDB-backed movie/TV one. Shipped in three stages —
+   see the fix log above for all three.
+
+All five roadmap phases are done. Nothing currently queued — next work
+should come from actual usage, not a pre-written plan.
 
 ## Open questions
 
 - Final project name (currently "Reeler", working title only).
 - ~~MusicBrainz/Last.fm choice for manually-logging music~~ — resolved:
-  MusicBrainz, no API key needed (unlike TMDb/TVDB). The actual
-  manual-music-logging UI isn't built yet — that's roadmap phase 5,
-  stage 3.
+  MusicBrainz, no API key needed (unlike TMDb/TVDB). Built — see
+  roadmap phase 5.
 - ~~Whether household member linking needs explicit admin approval~~ —
   resolved for now: any Plex account that completes the OAuth sign-in
   auto-links to a new Reeler account, first one in becomes admin. No

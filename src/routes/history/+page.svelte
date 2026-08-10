@@ -102,9 +102,9 @@
 		> page to enable it.
 	</p>
 {:else}
-	{#if form?.loggedSuccess}
+	{#if form?.context === 'movie' && form.loggedSuccess}
 		<p class="success">Logged.</p>
-	{:else if form?.message}
+	{:else if form?.context === 'movie' && form.message}
 		<p class="error">{form.message}</p>
 	{/if}
 
@@ -140,6 +140,51 @@
 				{/each}
 			</div>
 		{/if}
+	{/if}
+{/if}
+
+<h2 class="section-headline">Log music not in Plex</h2>
+
+{#if form?.context === 'music' && form.loggedMusicSuccess}
+	<p class="success">Logged.</p>
+{:else if form?.context === 'music' && form.message}
+	<p class="error">{form.message}</p>
+{/if}
+
+<form class="search" method="GET">
+	<input
+		type="search"
+		name="musicLogQuery"
+		placeholder="Search albums…"
+		value={data.musicLogQuery}
+	/>
+	<button type="submit">Search</button>
+</form>
+
+{#if data.musicLogQuery}
+	{#if data.musicLogResults.length === 0}
+		<p class="empty">No matches.</p>
+	{:else}
+		<div class="card-grid">
+			{#each data.musicLogResults as result (result.musicbrainzId)}
+				<div class="result">
+					<MediaCard
+						title={result.artist ? `${result.title} — ${result.artist}` : result.title}
+						year={result.year}
+						square
+						type="album"
+					/>
+					<form method="POST" action="?/logManualMusic" use:enhance>
+						<input type="hidden" name="musicbrainzId" value={result.musicbrainzId} />
+						<input type="hidden" name="title" value={result.title} />
+						<input type="hidden" name="artist" value={result.artist ?? ''} />
+						<input type="hidden" name="year" value={result.year ?? ''} />
+						<input type="date" name="watchedAt" />
+						<button type="submit">Log</button>
+					</form>
+				</div>
+			{/each}
+		</div>
 	{/if}
 {/if}
 
