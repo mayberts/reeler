@@ -6,6 +6,7 @@ import { searchTmdb, getTmdbDetails } from '$lib/server/tmdb/client';
 import { getTmdbReadAccessToken } from '$lib/server/tmdb/config';
 import { searchTvdb, getTvdbDetails } from '$lib/server/tvdb/client';
 import { getTvdbApiKey } from '$lib/server/tvdb/config';
+import { searchMusicBrainz, getMusicBrainzDetails } from '$lib/server/musicbrainz/client';
 import { getOwnedLists } from '$lib/server/lists';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -103,10 +104,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
 	const logQuery = url.searchParams.get('logQuery')?.trim() ?? '';
-	const [logResults, tmdbToken, tvdbKey] = await Promise.all([
+	const musicLogQuery = url.searchParams.get('musicLogQuery')?.trim() ?? '';
+	const [logResults, tmdbToken, tvdbKey, musicLogResults] = await Promise.all([
 		logQuery ? searchForManualLog(logQuery) : Promise.resolve([]),
 		getTmdbReadAccessToken(),
-		getTvdbApiKey()
+		getTvdbApiKey(),
+		musicLogQuery ? searchMusicBrainz(musicLogQuery) : Promise.resolve([])
 	]);
 
 	return {
@@ -118,6 +121,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		logQuery,
 		logResults,
 		manualLogEnabled: tmdbToken !== null || tvdbKey !== null,
+		musicLogQuery,
+		musicLogResults,
 		myLists
 	};
 };
@@ -142,7 +147,7 @@ export const actions: Actions = {
 			typeof title !== 'string' ||
 			(mediaType !== 'movie' && mediaType !== 'show')
 		) {
-			return fail(400, { message: 'Missing fields' });
+			return fail(400, { context: 'movie' as const, message: 'Missing fields' });
 		}
 
 		const year = typeof yearRaw === 'string' && yearRaw ? Number(yearRaw) : null;
@@ -205,7 +210,67 @@ export const actions: Actions = {
 			source: 'manual'
 		});
 
-		return { loggedSuccess: true };
+		return { context: 'movie' as const, loggedSuccess: true };
+	},
+
+	logManualMusic: async ({ request, locals }) => {
+		if (!locals.user) return fail(401);
+		const user = locals.user;
+
+		const form = await request.formData();
+		const musicbrainzId = form.get('musicbrainzId');
+		const title = form.get('title');
+		const artist = form.get('artist');
+		const yearRaw = form.get('year');
+		const watchedAtRaw = form.get('watchedAt');
+
+		if (typeof musicbrainzId !== 'string' || typeof title !== 'string') {
+			return fail(400, { context: 'music' as const, message: 'Missing fields' });
+		}
+
+		const year = typeof yearRaw === 'string' && yearRaw ? Number(yearRaw) : null;
+		const watchedAt =
+			typeof watchedAtRaw === 'string' && watchedAtRaw ? new Date(watchedAtRaw) : new Date();
+		// MusicBrainz's own title field doesn't include the artist — folded in here (not
+		// stored as a separate column) the same way Reeler already has no artist concept
+		// for Plex-synced albums either, see DESIGN.md.
+		const fullTitle = typeof artist === 'string' && artist ? `${title} — ${artist}` : title;
+
+		let mediaItem = await db.query.mediaItems.findFirst({
+			where: eq(mediaItems.musicbrainzId, musicbrainzId)
+		});
+
+		if (!mediaItem) {
+			// Best-effort — cover art is commonly missing for a given release and that's
+			// not a reason to block logging the watch itself.
+			let artworkUrl: string | null = null;
+			try {
+				artworkUrl = (await getMusicBrainzDetails(musicbrainzId)).artworkUrl;
+			} catch (err) {
+				console.error('[history] failed to fetch MusicBrainz cover art', err);
+			}
+
+			const [created] = await db
+				.insert(mediaItems)
+				.values({
+					type: 'album',
+					title: fullTitle,
+					year,
+					musicbrainzId,
+					artworkUrl
+				})
+				.returning();
+			mediaItem = created;
+		}
+
+		await db.insert(watchHistory).values({
+			userId: user.id,
+			mediaItemId: mediaItem.id,
+			watchedAt,
+			source: 'manual'
+		});
+
+		return { context: 'music' as const, loggedMusicSuccess: true };
 	},
 
 	removeEntry: async ({ request, locals }) => {
