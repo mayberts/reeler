@@ -608,6 +608,56 @@ and all 250 rows landed in `watch_history`, not just the first 200.
 Re-ran the same sync a second time to confirm it stays idempotent (row
 count unchanged, no duplicates). Typecheck/lint/build clean.
 
+### Watched status can also be missing from the history log entirely — not just paginated away
+
+After a real redeploy (confirmed: `docker compose pull && up -d`, not
+just an in-app sync) and a fresh sync, the pagination fix above wasn't
+enough — most of a 1,358-movie library was still showing unwatched in
+Reeler despite a reference app with the same Plex library showing it
+watched. So the history log itself, even paginated through in full,
+didn't contain most of these watches — a different problem than the
+one just fixed.
+
+Plex tracks "watched" two independent ways: the `/status/sessions/
+history/all` event log (one row per playback), and a permanent
+per-item `viewCount`/`lastViewedAt` on the item's own metadata
+(returned by the ordinary library listing, `/library/sections/.../
+all`). Reeler only ever read the former. The event log has real gaps
+that have nothing to do with pagination: a library re-match/re-scan
+can give an item a new internal id, orphaning its old history-log
+rows, and anything watched before scrobble/webhook tracking was set up
+was simply never logged. `viewCount` isn't affected by either — Plex
+keeps it against the item permanently regardless of (re)matching.
+
+Added `viewCount`/`lastViewedAt` to `PlexMetadataItem` and a new
+`applyLibraryViewCounts()` (`src/lib/server/sync/history.ts`), called
+from `syncLibrary()` (`src/lib/server/sync/library.ts`) using data
+already fetched during the normal library pass — no extra Plex
+requests. For each item with `viewCount > 0`, it adds a `watch_history`
+row only if the user has _zero_ existing rows for that item; a real
+history-log entry (accurate timestamp, already present) is always left
+alone and never duplicated.
+
+Gated to the Plex Home owner/admin account only (`plexAccountId ===
+'1'`, Plex's own convention for the server-owner's local account id).
+`viewCount` from a single admin-token query reflects that token's own
+account, not each individual Plex Home member's — applying it
+indiscriminately to every linked user would misattribute the owner's
+watch history onto other household members. Other linked users still
+get accurate (if less complete) history from the event-log path alone.
+
+Verified with a mock Plex server: 300 movies all with `viewCount: 1`,
+but only the most recent 20 present in the history log (simulating the
+orphaned/gap scenario). Two linked users — one with `plexAccountId:
+'1'` (owner), one `'2'` (not owner). Confirmed via direct DB query:
+owner ends up with all 300 `watch_history` rows (280 repaired from
+`viewCount`, 20 from the real log, zero duplicates — 300 distinct
+media items total, matching exactly), while the non-owner account gets
+only the 20 real log entries and _zero_ `viewCount`-derived rows,
+confirming the gate holds. Re-ran sync to confirm idempotency
+(`watchedFromViewCount: 0` on the second pass, row counts unchanged).
+Typecheck/lint/build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

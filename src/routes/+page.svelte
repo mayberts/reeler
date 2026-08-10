@@ -45,9 +45,9 @@
 {#if form?.success}
 	<p class="sync-result">
 		Synced {form.library.itemsUpserted} library items, {form.history.entriesInserted} new history entries{form
-			.repair.fixed > 0
-			? `, repaired ${form.repair.fixed} track-to-album links`
-			: ''}.
+			.library.watchedFromViewCount > 0
+			? `, ${form.library.watchedFromViewCount} watched status repaired from Plex`
+			: ''}{form.repair.fixed > 0 ? `, repaired ${form.repair.fixed} track-to-album links` : ''}.
 	</p>
 {:else if form?.message}
 	<p class="sync-error">{form.message}</p>

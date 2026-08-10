@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { watchHistory } from '$lib/server/db/schema';
 import { getWatchHistory } from '$lib/server/plex/client';
@@ -79,6 +80,68 @@ export async function backfillWatchHistory(
 	}
 
 	return { entriesSeen, entriesInserted };
+}
+
+/**
+ * Plex Media Server's convention for its own local accounts table: the server
+ * owner/admin is always account id 1. `viewCount`/`lastViewedAt` on a library item
+ * (see `applyLibraryViewCounts`) reflect whichever account the sync's single admin
+ * token belongs to — the owner — not each individual Plex Home member, so gating on
+ * this id is what keeps that data from being misattributed to a different linked user.
+ */
+const PLEX_OWNER_ACCOUNT_ID = '1';
+
+export interface ViewedLibraryItem {
+	mediaItemId: string;
+	lastViewedAt: number | null;
+}
+
+/**
+ * Repairs watched state for the Plex Home owner account from Plex's own permanent
+ * per-item `viewCount`, for items that have zero `watch_history` rows despite Plex
+ * showing them as watched.
+ *
+ * `/status/sessions/history/all` (what `backfillWatchHistory` reads) is an event log,
+ * and real Plex libraries can have gaps in it that have nothing to do with pagination —
+ * a re-match/re-scan can orphan old history rows by giving an item a new internal id,
+ * and watches from before scrobble/webhook tracking was ever set up were never logged
+ * to begin with. `viewCount` isn't affected by either: Plex maintains it permanently
+ * against the item regardless of how it got (re)matched. Only ever adds a row when none
+ * already exists for that item — real history-log entries (which carry an accurate
+ * watched timestamp) always take precedence and are never duplicated by this.
+ */
+export async function applyLibraryViewCounts(
+	viewedItems: ViewedLibraryItem[]
+): Promise<{ inserted: number }> {
+	if (viewedItems.length === 0) return { inserted: 0 };
+
+	const owner = await db.query.users.findFirst({
+		where: (fields, { eq }) => eq(fields.plexAccountId, PLEX_OWNER_ACCOUNT_ID)
+	});
+	if (!owner) return { inserted: 0 };
+
+	// A plain `userId` lookup rather than `inArray(mediaItemId, viewedItems.ids)` — a full
+	// library's worth of ids in one IN clause risks tripping SQLite's bound-variable cap,
+	// and this is no more expensive (indexed on `user_id`) while working at any scale.
+	const alreadyWatchedRows = await db
+		.selectDistinct({ mediaItemId: watchHistory.mediaItemId })
+		.from(watchHistory)
+		.where(eq(watchHistory.userId, owner.id));
+	const alreadyWatchedIds = new Set(alreadyWatchedRows.map((row) => row.mediaItemId));
+
+	let inserted = 0;
+	for (const item of viewedItems) {
+		if (alreadyWatchedIds.has(item.mediaItemId)) continue;
+		await db.insert(watchHistory).values({
+			userId: owner.id,
+			mediaItemId: item.mediaItemId,
+			watchedAt: item.lastViewedAt ? new Date(item.lastViewedAt * 1000) : new Date(),
+			source: 'plex'
+		});
+		inserted++;
+	}
+
+	return { inserted };
 }
 
 /** Runs backfill for every local account linked to a Plex Home user. */

@@ -111,6 +111,14 @@ export interface PlexMetadataItem {
 	year?: number;
 	accountID?: number;
 	viewedAt?: number;
+	/**
+	 * Plex's own permanent per-item watch counter/timestamp, present on every library
+	 * listing response — distinct from (and not subject to the same retention/rematch
+	 * quirks as) the `/status/sessions/history/all` event log. Reflects whichever
+	 * account the request's token belongs to, not each Plex Home member individually.
+	 */
+	viewCount?: number;
+	lastViewedAt?: number;
 	userRating?: number;
 	guid?: string;
 	Guid?: Array<{ id: string }>;

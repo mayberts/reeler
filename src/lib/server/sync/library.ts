@@ -5,10 +5,12 @@ import {
 	type PlexMetadataItem
 } from '$lib/server/plex/client';
 import { upsertMediaItemFromPlex } from './media-item';
+import { applyLibraryViewCounts, type ViewedLibraryItem } from './history';
 
 export interface LibrarySyncResult {
 	sectionsScanned: number;
 	itemsUpserted: number;
+	watchedFromViewCount: number;
 }
 
 /**
@@ -36,6 +38,12 @@ export interface LibrarySyncResult {
  * transaction (a full disk sync per row); batching them into one commit is dramatically
  * faster on any library big enough to notice, without holding a transaction open across
  * a slow network call.
+ *
+ * Also repairs the Plex Home owner's watched state from each item's `viewCount` (see
+ * `applyLibraryViewCounts`) using the same listing data — no extra Plex requests. This
+ * is why library sync (not just history backfill) matters for watched-status accuracy:
+ * an item's `viewCount` can be correct here even when `/status/sessions/history/all`
+ * has no matching event for it.
  */
 export async function syncLibrary(): Promise<LibrarySyncResult> {
 	const { MediaContainer } = await listLibrarySections();
@@ -67,12 +75,18 @@ export async function syncLibrary(): Promise<LibrarySyncResult> {
 	// it returns a promise), which an async upsert loop can't be; raw BEGIN/COMMIT has no
 	// such restriction and produces the identical commit-boundary behavior.
 	let itemsUpserted = 0;
+	const viewedItems: ViewedLibraryItem[] = [];
 	sqliteClient.exec('BEGIN');
 	try {
 		for (const item of allItems) {
 			try {
 				const id = await upsertMediaItemFromPlex(item);
-				if (id) itemsUpserted++;
+				if (id) {
+					itemsUpserted++;
+					if (item.viewCount && item.viewCount > 0) {
+						viewedItems.push({ mediaItemId: id, lastViewedAt: item.lastViewedAt ?? null });
+					}
+				}
 			} catch (err) {
 				// One malformed item shouldn't abort the whole sync.
 				console.error('[sync] failed to upsert library item', { ratingKey: item.ratingKey }, err);
@@ -84,5 +98,7 @@ export async function syncLibrary(): Promise<LibrarySyncResult> {
 		throw err;
 	}
 
-	return { sectionsScanned: sections.length, itemsUpserted };
+	const { inserted: watchedFromViewCount } = await applyLibraryViewCounts(viewedItems);
+
+	return { sectionsScanned: sections.length, itemsUpserted, watchedFromViewCount };
 }

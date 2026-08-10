@@ -10,7 +10,10 @@ async function runLibrarySync() {
 	try {
 		const result = await syncLibrary();
 		console.log(
-			`[sync] library: ${result.itemsUpserted} items across ${result.sectionsScanned} sections`
+			`[sync] library: ${result.itemsUpserted} items across ${result.sectionsScanned} sections` +
+				(result.watchedFromViewCount > 0
+					? ` (${result.watchedFromViewCount} watched from viewCount)`
+					: '')
 		);
 	} catch (err) {
 		console.error('[sync] library sync failed', err);
