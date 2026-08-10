@@ -1,14 +1,39 @@
-import { eq, max } from 'drizzle-orm';
+import { count, eq, max } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { lists, listItems } from '$lib/server/db/schema';
 
-/** Lists a user can see: their own, plus anything marked shared. */
+/**
+ * Lists a user can see: their own, plus anything marked shared. Each list carries its
+ * total item count and up to 3 preview items (for a stacked-poster thumbnail) — the
+ * item count is computed separately from the preview items since the preview is
+ * limited to 3 but the count needs to reflect the true total.
+ */
 export async function getVisibleLists(userId: string) {
-	return db.query.lists.findMany({
-		where: (fields, { eq, or }) => or(eq(fields.ownerId, userId), eq(fields.isShared, true)),
-		orderBy: (fields, { desc }) => desc(fields.createdAt),
-		with: { owner: true }
-	});
+	const [visibleLists, counts] = await Promise.all([
+		db.query.lists.findMany({
+			where: (fields, { eq, or }) => or(eq(fields.ownerId, userId), eq(fields.isShared, true)),
+			orderBy: (fields, { desc }) => desc(fields.createdAt),
+			with: {
+				owner: true,
+				items: {
+					orderBy: (fields, { asc }) => asc(fields.position),
+					limit: 3,
+					with: { mediaItem: true }
+				}
+			}
+		}),
+		db
+			.select({ listId: listItems.listId, count: count() })
+			.from(listItems)
+			.groupBy(listItems.listId)
+	]);
+
+	const countMap = new Map(counts.map((row) => [row.listId, row.count]));
+	return visibleLists.map((list) => ({
+		...list,
+		itemCount: countMap.get(list.id) ?? 0,
+		previewItems: list.items.map((item) => item.mediaItem)
+	}));
 }
 
 /** Lists this user owns (can add items to) — id/name only, for the card action bar's list picker. */

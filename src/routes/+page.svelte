@@ -53,6 +53,34 @@
 	<p class="sync-error">{form.message}</p>
 {/if}
 
+{#if data.recentMovies.length > 0}
+	<h2 class="section-headline">Recently added movies</h2>
+	<div class="scroll-row">
+		{#each data.recentMovies as item (item.id)}
+			<MediaCard
+				id={item.id}
+				title={item.title}
+				year={item.year}
+				hasArtwork={!!(item.plexThumb || item.artworkUrl)}
+			/>
+		{/each}
+	</div>
+{/if}
+
+{#if data.recentShows.length > 0}
+	<h2 class="section-headline">Recently added shows</h2>
+	<div class="scroll-row">
+		{#each data.recentShows as item (item.id)}
+			<MediaCard
+				id={item.id}
+				title={item.title}
+				year={item.year}
+				hasArtwork={!!(item.plexThumb || item.artworkUrl)}
+			/>
+		{/each}
+	</div>
+{/if}
+
 <h2 class="section-headline">Recent activity</h2>
 {#if data.recentHistory.length === 0}
 	<p class="empty">

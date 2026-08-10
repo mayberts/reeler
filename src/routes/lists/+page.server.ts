@@ -5,7 +5,7 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) error(401, 'Not authenticated');
 
-	return { lists: await getVisibleLists(locals.user.id) };
+	return { lists: await getVisibleLists(locals.user.id), userId: locals.user.id };
 };
 
 export const actions: Actions = {

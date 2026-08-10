@@ -26,22 +26,30 @@
 {:else}
 	<div class="card-grid">
 		{#each data.list.items as item (item.id)}
-			<div class="result">
-				<MediaCard
-					id={item.mediaItem.id}
-					title={item.mediaItem.title}
-					year={item.mediaItem.year}
-					hasArtwork={!!(item.mediaItem.plexThumb || item.mediaItem.artworkUrl)}
-					type={item.mediaItem.type}
-					myLists={data.myLists}
-				/>
-				{#if data.isOwner}
-					<form method="POST" action="?/removeItem" use:enhance>
-						<input type="hidden" name="listItemId" value={item.id} />
-						<button type="submit">Remove</button>
-					</form>
-				{/if}
-			</div>
+			{#snippet removeOverlay()}
+				<form method="POST" action="?/removeItem" use:enhance>
+					<input type="hidden" name="listItemId" value={item.id} />
+					<button type="submit" class="icon-btn" aria-label="Remove from list" title="Remove">
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
+						>
+					</button>
+				</form>
+			{/snippet}
+			<MediaCard
+				id={item.mediaItem.id}
+				title={item.mediaItem.title}
+				year={item.mediaItem.year}
+				hasArtwork={!!(item.mediaItem.plexThumb || item.mediaItem.artworkUrl)}
+				type={item.mediaItem.type}
+				myLists={data.myLists}
+				overlay={data.isOwner ? removeOverlay : undefined}
+			/>
 		{/each}
 	</div>
 {/if}
@@ -102,6 +110,26 @@
 		border: 1px solid currentColor;
 		border-radius: 0.25rem;
 		padding: 0.05rem 0.35rem;
+	}
+	.icon-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.75rem;
+		height: 1.75rem;
+		padding: 0;
+		border-radius: 50%;
+		background: rgba(0, 0, 0, 0.7);
+		border: 1px solid var(--border-strong);
+		color: white;
+	}
+	.icon-btn svg {
+		width: 0.8rem;
+		height: 0.8rem;
+	}
+	.icon-btn:hover {
+		background: var(--danger);
+		border-color: var(--danger);
 	}
 	.result {
 		display: flex;

@@ -292,6 +292,72 @@ buttons produced real `watch_history`/`list_items` rows — confirmed by
 querying the DB directly after the clicks, not just checking the UI
 state.
 
+### Full Scrob audit: closing the remaining UI gaps
+
+Round two above deferred the History/List row-card reskins and a mobile
+bottom nav. Rather than keep cherry-picking piece by piece and missing
+things, this round did a full page-by-page audit of every Scrob
+component/page against Reeler's equivalent and closed every applicable
+gap in one pass:
+
+- **Mobile bottom nav.** A fixed bottom nav bar (Dashboard/Movies/Shows/
+  Music/History/Lists, icon + label) now shows below a 46rem viewport,
+  replacing the desktop header nav — matching Scrob's `Base.astro`
+  mobile nav. Uses `env(safe-area-inset-bottom)` padding for notched
+  phones; `<main>` gets bottom padding so content doesn't sit under it.
+- **`/lists` index redesign.** Replaced the old plain list-of-links with
+  `ListCard` rows (Scrob's `ListCard.astro`): up to 3 stacked poster
+  thumbnails per list, a real item count (not just "N items" text), and
+  a placeholder icon for empty lists. `getVisibleLists()` now fetches
+  both a per-list preview (`limit: 3`, ordered by position) and a true
+  total count via a separate grouped query, since the preview cap and
+  the count need different queries.
+- **List-item removal moved onto the card itself.** `MediaCard` gained
+  an `overlay` prop (a Svelte 5 snippet rendered absolutely-positioned
+  over the top-right corner of the poster, as a sibling of the poster
+  `<a>` rather than nested inside it, to keep it out of the anchor's
+  interactive content). `/lists/[id]` now passes a small "✕" remove
+  form through it instead of a separate button row below each card —
+  matching how Scrob overlays its own remove control on `ListCard`.
+- **`/history` redesign.** Replaced the flat table with `HistoryRow`
+  cards (Scrob's `HistoryCard.astro`) grouped under date headings
+  ("Monday, August 10, 2026"), a type-filter pill tab bar (All/Movies/
+  Shows/Music), a rating badge and source tag (Plex/manual) per row,
+  a delete button per entry (new `removeEntry` action, scoped to the
+  signed-in user), and real pagination — all backed by a rewritten
+  server query (`innerJoin` on `media_items`, `leftJoin` on the
+  signed-in user's `ratings` row, `LIMIT`/`OFFSET`) replacing the old
+  load-everything-then-filter-in-memory approach.
+- **Dashboard "Recently added" rows.** Two horizontal-scroll rows
+  (movies, shows — 15 each, newest first) below the sync-result
+  banner, matching Scrob's dashboard recent-additions rails. Music
+  omitted here since albums/tracks don't carry the same "just landed
+  in the library" signal movies/shows do (see music pre-sync notes
+  above).
+
+**Explicitly out of scope, flagged rather than silently dropped** —
+each of these needs a backend capability Reeler doesn't have and that
+doesn't fit its Plex-only, non-social scope: cast/crew credits, TMDb
+collections/franchise groupings, in-app video playback, comments,
+recommendations/trending/discover/next-up/continue-watching rails
+(need a TMDb discovery API integration or Plex session-position
+tracking, neither of which exist yet), multi-user social features
+(public/friends-only list privacy, community lists, user profiles),
+Radarr/Sonarr import (dropped earlier in the project, see history),
+and Scrob's full analytics suite beyond Reeler's existing stats page
+(period navigation, weekday chart, watch-time chart, rating-distribution
+histogram, per-collection pie charts). Possible future follow-up, not
+this round.
+
+Verified with a full Playwright pass against seeded data (10 recently-
+added movies/shows, 2 lists — one empty enough to hit the placeholder
+path, one with a preview item, 3 history entries across 2 days with one
+manual entry and one rating) plus the usual typecheck/lint/build: dashboard
+recent-additions rows, lists index card/placeholder rendering, list-detail
+overlay remove button, history date grouping, type-filter tabs, and
+entry deletion (3→2 rows) all confirmed working by screenshot and
+direct DB queries.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

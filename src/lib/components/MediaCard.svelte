@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import type { Snippet } from 'svelte';
 
 	interface ListOption {
 		id: string;
@@ -24,6 +25,8 @@
 		type?: string;
 		/** Owned lists this user can add the item to. Omit/empty hides the Lists action. */
 		myLists?: ListOption[];
+		/** Small corner overlay button on the poster (e.g. "remove from this list") — positioned opposite the top-left rating/badge area. */
+		overlay?: Snippet;
 	}
 
 	let {
@@ -36,7 +39,8 @@
 		watched: initialWatched = false,
 		square = false,
 		type,
-		myLists = []
+		myLists = [],
+		overlay
 	}: Props = $props();
 
 	const imgSrc = $derived(posterUrl ?? (hasArtwork && id ? `/api/media/${id}/poster` : null));
@@ -90,15 +94,20 @@
 
 <div class="card">
 	{#if detailHref}
-		<a class="poster-link" href={detailHref}>
-			<div class="poster" class:square>
-				{#if imgSrc}
-					<img src={imgSrc} alt="" loading="lazy" />
-				{:else}
-					<div class="placeholder" aria-hidden="true">{title.charAt(0).toUpperCase()}</div>
-				{/if}
-			</div>
-		</a>
+		<div class="poster-wrap">
+			<a class="poster-link" href={detailHref}>
+				<div class="poster" class:square>
+					{#if imgSrc}
+						<img src={imgSrc} alt="" loading="lazy" />
+					{:else}
+						<div class="placeholder" aria-hidden="true">{title.charAt(0).toUpperCase()}</div>
+					{/if}
+				</div>
+			</a>
+			{#if overlay}
+				<div class="overlay">{@render overlay()}</div>
+			{/if}
+		</div>
 
 		<div class="action-bar">
 			<div class="action watched" class:active={watched}>
@@ -220,6 +229,15 @@
 		display: block;
 		color: inherit;
 		text-decoration: none;
+	}
+	.poster-wrap {
+		position: relative;
+	}
+	.overlay {
+		position: absolute;
+		top: 0.4rem;
+		right: 0.4rem;
+		z-index: 2;
 	}
 	.poster {
 		position: relative;

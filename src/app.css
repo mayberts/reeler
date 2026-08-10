@@ -219,3 +219,16 @@ form {
 .empty {
 	color: var(--ink-muted);
 }
+
+/* Horizontally-scrolling row of cards — dashboard's "Recently Added" strips. */
+.scroll-row {
+	display: flex;
+	gap: 1rem;
+	overflow-x: auto;
+	padding: 0.25rem 0.25rem 1rem;
+	margin: 1rem -0.25rem 0;
+	scrollbar-width: thin;
+}
+.scroll-row > * {
+	flex: 0 0 9rem;
+}

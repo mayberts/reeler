@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { resolve } from '$app/paths';
+	import ListCard from '$lib/components/ListCard.svelte';
 
 	let { data, form } = $props();
+	let creating = $state(false);
 </script>
 
 <h1>Lists</h1>
@@ -14,66 +15,55 @@
 {#if data.lists.length === 0}
 	<p class="empty">No lists yet — create one below.</p>
 {:else}
-	<ul class="lists">
+	<div class="lists-grid">
 		{#each data.lists as list (list.id)}
-			<li>
-				<a href={resolve('/lists/[id]', { id: list.id })}>{list.name}</a>
-				{#if list.isShared}<span class="badge">shared</span>{/if}
-				<span class="owner">by {list.owner.username}</span>
-			</li>
+			<ListCard
+				id={list.id}
+				name={list.name}
+				description={list.description}
+				isShared={list.isShared}
+				itemCount={list.itemCount}
+				ownerUsername={list.ownerId === data.userId ? undefined : list.owner.username}
+				previewItems={list.previewItems}
+			/>
 		{/each}
-	</ul>
+	</div>
 {/if}
 
-<h2 class="section-headline">New list</h2>
-<form method="POST" action="?/create" use:enhance>
-	<input type="text" name="name" placeholder="List name" required />
-	<input type="text" name="description" placeholder="Description (optional)" />
-	<label><input type="checkbox" name="isShared" /> Shared with everyone</label>
-	<button type="submit" class="primary">Create</button>
-</form>
+<details class="new-list" bind:open={creating}>
+	<summary>+ New list</summary>
+	<form method="POST" action="?/create" use:enhance>
+		<input type="text" name="name" placeholder="List name" required />
+		<input type="text" name="description" placeholder="Description (optional)" />
+		<label><input type="checkbox" name="isShared" /> Shared with everyone</label>
+		<button type="submit" class="primary">Create</button>
+	</form>
+</details>
 
 <style>
-	.lists {
+	.lists-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+		gap: 1rem;
+		margin: 1.25rem 0 2rem;
+	}
+	.new-list summary {
 		list-style: none;
-		padding: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.35rem;
-		margin: 1rem 0 2rem;
-	}
-	.lists li {
-		display: flex;
+		display: inline-flex;
 		align-items: center;
-		gap: 0.6rem;
-		padding: 0.65rem 0.75rem;
+		padding: 0.5rem 0.9rem;
 		border-radius: var(--radius-sm);
-		margin: 0 -0.75rem;
-	}
-	.lists li:hover {
+		border: 1px solid var(--border-strong);
 		background: var(--surface-raised);
-	}
-	.lists a {
-		color: inherit;
+		cursor: pointer;
 		font-weight: 600;
-		text-decoration: none;
+		font-size: 0.9rem;
 	}
-	.lists a:hover {
-		text-decoration: underline;
+	.new-list summary::-webkit-details-marker {
+		display: none;
 	}
-	.badge {
-		font-size: 0.7rem;
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-		border: 1px solid currentColor;
-		border-radius: 0.25rem;
-		padding: 0.05rem 0.35rem;
-		opacity: 0.75;
-	}
-	.owner {
-		margin-left: auto;
-		font-size: 0.85rem;
-		opacity: 0.6;
+	.new-list form {
+		margin-top: 1rem;
 	}
 	.error {
 		color: var(--danger);

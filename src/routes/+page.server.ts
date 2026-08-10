@@ -12,7 +12,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) error(401, 'Not authenticated');
 	const user = locals.user;
 
-	const [[userCount], [mediaCount], [historyCount], recentHistory, myLists] = await Promise.all([
+	const [
+		[userCount],
+		[mediaCount],
+		[historyCount],
+		recentHistory,
+		myLists,
+		recentMovies,
+		recentShows
+	] = await Promise.all([
 		db.select({ value: count() }).from(users),
 		db.select({ value: count() }).from(mediaItems),
 		db.select({ value: count() }).from(watchHistory),
@@ -22,7 +30,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 			limit: 10,
 			with: { mediaItem: true }
 		}),
-		getOwnedLists(user.id)
+		getOwnedLists(user.id),
+		db.query.mediaItems.findMany({
+			where: eq(mediaItems.type, 'movie'),
+			orderBy: desc(mediaItems.createdAt),
+			limit: 15
+		}),
+		db.query.mediaItems.findMany({
+			where: eq(mediaItems.type, 'show'),
+			orderBy: desc(mediaItems.createdAt),
+			limit: 15
+		})
 	]);
 
 	return {
@@ -30,7 +48,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		mediaCount: mediaCount.value,
 		historyCount: historyCount.value,
 		recentHistory,
-		myLists
+		myLists,
+		recentMovies,
+		recentShows
 	};
 };
 
