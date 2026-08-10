@@ -25,6 +25,8 @@
 		emptyText: string;
 		/** Square (1:1) artwork instead of the default 2:3 poster — album covers, not posters. */
 		square?: boolean;
+		/** Hides the watched action/badge and filter — for media types with no meaningful watch status (e.g. albums, where plays are tracked per-track, not per-album). */
+		showWatched?: boolean;
 		genres: string[];
 		watched: BrowseWatched | null;
 		availableGenres: string[];
@@ -41,6 +43,7 @@
 		sort,
 		emptyText,
 		square = false,
+		showWatched = true,
 		genres,
 		watched,
 		availableGenres,
@@ -49,7 +52,7 @@
 		myLists
 	}: Props = $props();
 
-	const activeFilterCount = $derived(genres.length + (watched ? 1 : 0));
+	const activeFilterCount = $derived(genres.length + (showWatched && watched ? 1 : 0));
 
 	// ±2 pages around current, matching Scrob's desktop pagination window.
 	const pageNumbers = $derived.by(() => {
@@ -114,25 +117,32 @@
 							</label>
 						{/each}
 					</fieldset>
-					<fieldset>
-						<legend>Watched</legend>
-						<label>
-							<input type="radio" name="watched" value="" checked={watched === null} /> Any
-						</label>
-						<label>
-							<input type="radio" name="watched" value="watched" checked={watched === 'watched'} />
-							Watched
-						</label>
-						<label>
-							<input
-								type="radio"
-								name="watched"
-								value="unwatched"
-								checked={watched === 'unwatched'}
-							/>
-							Unwatched
-						</label>
-					</fieldset>
+					{#if showWatched}
+						<fieldset>
+							<legend>Watched</legend>
+							<label>
+								<input type="radio" name="watched" value="" checked={watched === null} /> Any
+							</label>
+							<label>
+								<input
+									type="radio"
+									name="watched"
+									value="watched"
+									checked={watched === 'watched'}
+								/>
+								Watched
+							</label>
+							<label>
+								<input
+									type="radio"
+									name="watched"
+									value="unwatched"
+									checked={watched === 'unwatched'}
+								/>
+								Unwatched
+							</label>
+						</fieldset>
+					{/if}
 					{#if activeFilterCount > 0}
 						<div class="filters-actions">
 							<button type="button" onclick={clearFilters}>Clear all</button>
@@ -184,6 +194,7 @@
 				year={item.year}
 				hasArtwork={!!(item.plexThumb || item.artworkUrl)}
 				watched={item.watched}
+				{showWatched}
 				{square}
 				{myLists}
 			/>

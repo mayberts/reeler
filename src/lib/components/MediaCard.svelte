@@ -19,6 +19,8 @@
 		meta?: string;
 		/** Initial watched state — the action bar takes over from here with optimistic updates. */
 		watched?: boolean;
+		/** Hides the watched action — for media types with no meaningful watch status (e.g. albums, where plays are tracked per-track, not per-album). */
+		showWatched?: boolean;
 		/** Square (1:1) artwork instead of the default 2:3 poster — album covers, not posters. */
 		square?: boolean;
 		/** Small badge in the info footer — pass on grids that mix media types (dashboard, history, ratings, lists). */
@@ -37,6 +39,7 @@
 		posterUrl = null,
 		meta,
 		watched: initialWatched = false,
+		showWatched = true,
 		square = false,
 		type,
 		myLists = [],
@@ -110,30 +113,32 @@
 		</div>
 
 		<div class="action-bar">
-			<div class="action watched" class:active={watched}>
-				<button
-					type="button"
-					disabled={watchPending}
-					onclick={markWatched}
-					title={watched ? 'Watched' : 'Mark as watched'}
-				>
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle
-							cx="12"
-							cy="12"
-							r="3"
-							fill={watched ? 'currentColor' : 'none'}
-						/></svg
+			{#if showWatched}
+				<div class="action watched" class:active={watched}>
+					<button
+						type="button"
+						disabled={watchPending}
+						onclick={markWatched}
+						title={watched ? 'Watched' : 'Mark as watched'}
 					>
-					<span>Watched</span>
-				</button>
-			</div>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle
+								cx="12"
+								cy="12"
+								r="3"
+								fill={watched ? 'currentColor' : 'none'}
+							/></svg
+						>
+						<span>Watched</span>
+					</button>
+				</div>
+			{/if}
 
 			{#if myLists.length > 0}
 				<div class="action list" class:active={listDone}>
