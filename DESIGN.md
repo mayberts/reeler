@@ -687,6 +687,61 @@ detail page hides its "Watched" pill and "Last watched" line for
 tracks scrobble individually, so a track's own watched status is real.
 Typecheck/lint/build clean.
 
+### Stats page: rebuilt as a full dashboard, with music/listening time throughout
+
+The original stats page (hero tiles, a single 12-month activity bar
+chart, top-watched/top-rated lists) had no music in it at all, and a
+user asked for a richer dashboard-style layout — modeled on a
+reference app's stats page — that included it.
+
+Rebuilt `/stats` end to end: 6 hero tiles (added tracks played,
+listening time, split "watched" into movies/shows/episodes/tracks
+instead of one combined count); a 12-month activity chart and a
+watch/listen-time chart, both stacked by movie/episode/track; a
+most-watched-genres breakdown split into Movies/Shows/Music columns;
+time-spent and average-rating cards per type; a 1-10 rating
+distribution histogram; an average-activity-by-weekday chart; and a
+Collection section (per-type library size, plus watched/unwatched
+donuts). Extracted three reusable chart primitives
+(`StackedBarChart`, `SimpleBarChart`, `DonutChart` under
+`lib/components/`) rather than one-off SVG per section, since the six
+new chart-shaped sections all reduce to the same two or three shapes.
+
+A few data-modeling problems came up along the way, each solved by
+following a pattern already established elsewhere in the codebase
+rather than inventing a new one:
+
+- Episodes and tracks don't carry their own genre tags — only the
+  show/album does — so "most-watched genres" and "shows watched"
+  both walk the episode → season → show chain (and the equivalent
+  one-hop track → album), the same hierarchy `upsertMediaItemFromPlex`
+  already uses for parent linking. Weighted each parent's genre tags
+  by the child's play count rather than counting the parent once, so
+  a show binged 40 times contributes 40 tally marks, not 1.
+- Reused the "genre" fix from movies collected earlier — Plex-mirrored genres
+  live in a `genres` JSON column, not a joinable table — the JS-side
+  parse-then-tally here mirrors `listAvailableGenres` in
+  `lib/server/media/browse.ts` rather than reaching for SQLite's JSON1
+  functions, which nothing else in the codebase relies on being
+  compiled in.
+- "Albums listened" (a real watched/unwatched donut for music) is
+  derived from actual track plays joined up to their album — never
+  from an album's own `watch_history` rows, which the previous fix
+  above established don't reflect real listening. This is the
+  legitimate version of the signal that fix removed: aggregated from
+  real per-track plays instead of read off a fake per-album toggle.
+- "Watch time"/"listening time" reuse the existing generic
+  `runtimeMinutes` column (already populated for tracks from Plex's
+  `duration` field, same as movies/episodes) rather than adding a
+  music-specific duration field.
+
+Verified with a seeded SQLite DB (40 movies, 5 shows/80 episodes, 30
+albums with lazily-created tracks, mixed watch history and ratings
+across all three) rendered via a real browser (Playwright against the
+dev server) in both light and dark mode, including a hover
+interaction check on the new stacked-bar tooltip. Typecheck/lint/build
+clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
@@ -710,10 +765,15 @@ Typecheck/lint/build clean.
    for manually-logged music is still open, see below) and is optional:
    the app runs fine with no `TMDB_API_KEY` set, that section of the UI
    just says so instead of the search box.
-4. ✅ Stats page: hero tiles (total watches, unique titles, ratings given,
-   average rating), a watch-count breakdown by media type, a 12-month
-   activity bar chart, and top-watched/top-rated lists. (Unraid Community
-   Apps packaging dropped — not needed, see Deployment above.)
+4. ✅ Stats page: hero tiles, activity/watch-time charts, genre
+   breakdowns, rating distribution, day-of-week activity, and a
+   Collection section with watched/unwatched donuts — covering movies,
+   shows, and music (listening time, tracks played, albums listened)
+   throughout. Rebuilt into this fuller dashboard shape after initially
+   shipping a simpler version (hero tiles, one activity chart,
+   top-watched/top-rated lists) with no music in it at all — see the
+   fix log above. (Unraid Community Apps packaging dropped — not
+   needed, see Deployment above.)
 
 All four original roadmap phases are done. Nothing currently queued —
 next work should come from actual usage, not a pre-written plan.
