@@ -2,11 +2,14 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { ACCENT_COLORS } from '$lib/accent-colors';
 	import '../app.css';
 
 	let { children, data } = $props();
 
-	const navLinks = [
+	const accent = $derived(ACCENT_COLORS[data.accentColor]);
+
+	const navLinks = $derived([
 		{ href: '/', label: 'Dashboard' },
 		{ href: '/movies', label: 'Movies' },
 		{ href: '/shows', label: 'Shows' },
@@ -14,8 +17,9 @@
 		{ href: '/history', label: 'History' },
 		{ href: '/ratings', label: 'Ratings' },
 		{ href: '/lists', label: 'Lists' },
-		{ href: '/stats', label: 'Stats' }
-	] as const;
+		{ href: '/stats', label: 'Stats' },
+		...(data.user?.isAdmin ? [{ href: '/settings', label: 'Settings' }] : [])
+	] as const);
 
 	function isCurrent(href: string) {
 		return href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href);
@@ -26,7 +30,7 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="app">
+<div class="app" style="--accent: {accent.hex}; --accent-ink: {accent.ink};">
 	<header>
 		<a class="brand" href={resolve('/')}>Reeler</a>
 		{#if data.user}

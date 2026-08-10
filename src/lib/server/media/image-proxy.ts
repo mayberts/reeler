@@ -12,7 +12,8 @@ export async function respondWithImage(
 ): Promise<Response> {
 	if (plexPath) {
 		try {
-			const { serverUrl, token } = getPlexConfig();
+			const { serverUrl, token } = await getPlexConfig();
+			if (!serverUrl || !token) throw new Error('Plex server is not configured');
 			const url = new URL(plexPath, serverUrl);
 			url.searchParams.set('X-Plex-Token', token);
 

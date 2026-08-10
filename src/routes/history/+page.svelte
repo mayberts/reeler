@@ -67,6 +67,7 @@
 							watchedAt={entry.watchedAt}
 							source={entry.source}
 							rating={entry.rating}
+							twentyFourHourTime={data.twentyFourHourTime}
 						/>
 					{/each}
 				</div>

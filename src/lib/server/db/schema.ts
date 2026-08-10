@@ -191,6 +191,43 @@ export const listItems = sqliteTable(
 	(table) => [index('list_items_list_id_idx').on(table.listId)]
 );
 
+export const accentColorValues = [
+	'amber',
+	'blue',
+	'purple',
+	'pink',
+	'red',
+	'green',
+	'teal'
+] as const;
+export type AccentColor = (typeof accentColorValues)[number];
+
+/**
+ * Single-row table (`id` is always the literal `'singleton'`) holding the app-wide
+ * config editable from the Settings page — Plex connection, metadata-source keys, and
+ * display prefs. Every field the Settings page can set is nullable: a null here means
+ * "not overridden", and the corresponding env var (if any) is used instead — see
+ * `lib/server/settings.ts`. This lets existing `.env`-only deployments keep working
+ * unchanged after upgrading, with the Settings page as an optional override layer
+ * rather than a hard cutover.
+ */
+export const appSettings = sqliteTable('app_settings', {
+	id: text('id').primaryKey().default('singleton'),
+	plexServerUrl: text('plex_server_url'),
+	plexToken: text('plex_token'),
+	plexWebhookToken: text('plex_webhook_token'),
+	plexClientIdentifier: text('plex_client_identifier'),
+	tmdbReadAccessToken: text('tmdb_read_access_token'),
+	tvdbApiKey: text('tvdb_api_key'),
+	accentColor: text('accent_color', { enum: accentColorValues }).notNull().default('amber'),
+	twentyFourHourTime: integer('twenty_four_hour_time', { mode: 'boolean' })
+		.notNull()
+		.default(false),
+	updatedAt: integer('updated_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date())
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
 	watchHistory: many(watchHistory),
 	ratings: many(ratings),

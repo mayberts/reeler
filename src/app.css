@@ -21,7 +21,10 @@
 	--success-bg: light-dark(#dcfce7, rgba(74, 222, 128, 0.16));
 	--list-color: light-dark(#0284c7, #38bdf8);
 	--list-bg: light-dark(#e0f2fe, rgba(56, 189, 248, 0.16));
-	--rate-bg: light-dark(#fef3c7, rgba(229, 160, 13, 0.16));
+	/* Tied to --accent (not a fixed color) so a user-chosen accent shows through the
+	   rating pill's active state consistently, matching --accent's own light/dark split
+	   with an alpha blend instead of a second hardcoded color. */
+	--rate-bg: color-mix(in srgb, var(--accent) 16%, light-dark(white, black));
 	--radius: 1rem;
 	--radius-sm: 0.6rem;
 

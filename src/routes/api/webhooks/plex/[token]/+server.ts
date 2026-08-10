@@ -12,8 +12,8 @@ import { handlePlexWebhookEvent, type PlexWebhookPayload } from '$lib/server/ple
  * token (`PLEX_WEBHOOK_TOKEN`) to keep this endpoint from accepting arbitrary POSTs.
  */
 export const POST: RequestHandler = async ({ request, params }) => {
-	const { webhookToken } = getPlexConfig();
-	if (params.token !== webhookToken) {
+	const { webhookToken } = await getPlexConfig();
+	if (!webhookToken || params.token !== webhookToken) {
 		error(401, 'Invalid webhook token');
 	}
 
