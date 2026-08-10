@@ -5,6 +5,10 @@
 		value?: string;
 		placeholder?: string;
 		hint?: string;
+		/** Distinguishes "this value only works because of an env var, and isn't actually
+		 *  saved yet" from an ordinary informational hint — same info either way looking
+		 *  at just the input, very different consequences if the env var goes away. */
+		hintWarn?: boolean;
 		/** Renders a password-style field with a show/hide toggle. Off for plain fields like a URL. */
 		masked?: boolean;
 		/** Renders a "test" button that validates the field's *current* (possibly unsaved)
@@ -12,7 +16,16 @@
 		onTest?: (value: string) => Promise<{ ok: boolean; message: string }>;
 	}
 
-	let { label, name, value = '', placeholder, hint, masked = true, onTest }: Props = $props();
+	let {
+		label,
+		name,
+		value = '',
+		placeholder,
+		hint,
+		hintWarn = false,
+		masked = true,
+		onTest
+	}: Props = $props();
 
 	let liveValue = $state(value);
 	let revealed = $state(false);
@@ -80,7 +93,7 @@
 			</button>
 		{/if}
 	</div>
-	{#if hint}<p class="hint">{hint}</p>{/if}
+	{#if hint}<p class="hint" class:warn={hintWarn}>{hint}</p>{/if}
 	{#if testResult}
 		<p class="test-result" class:ok={testResult.ok} class:err={!testResult.ok}>
 			{testResult.ok ? '✓' : '✗'}
@@ -162,6 +175,10 @@
 		margin: 0;
 		font-size: 0.78rem;
 		color: var(--ink-muted);
+	}
+	.hint.warn {
+		color: var(--accent);
+		font-weight: 600;
 	}
 	.test-result {
 		margin: 0;
