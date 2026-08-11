@@ -125,7 +125,14 @@ export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promis
 		imdbId: imdbId ?? existing?.imdbId ?? null,
 		plexRatingKey: item.ratingKey,
 		parentId: parentId ?? existing?.parentId ?? null,
-		plexThumb: item.thumb ?? existing?.plexThumb ?? null,
+		// Tracks almost never carry their own `thumb` in Plex — a track has no artwork
+		// distinct from its album's cover — so fall back to the parent's poster
+		// (`parentThumb`) before giving up and falling back to whatever's already stored.
+		plexThumb:
+			item.thumb ??
+			(type === 'track' ? item.parentThumb : undefined) ??
+			existing?.plexThumb ??
+			null,
 		plexArt: item.art ?? existing?.plexArt ?? null,
 		tagline: item.tagline ?? existing?.tagline ?? null,
 		summary: item.summary ?? existing?.summary ?? null,
