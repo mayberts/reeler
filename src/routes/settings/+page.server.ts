@@ -1,4 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
+import { count } from 'drizzle-orm';
+import { db } from '$lib/server/db';
+import { users, mediaItems, watchHistory } from '$lib/server/db/schema';
 import {
 	getAppSettings,
 	getAppSettingsSource,
@@ -8,6 +11,9 @@ import {
 import { verifyPlexConnection } from '$lib/server/plex/client';
 import { verifyTmdbToken } from '$lib/server/tmdb/client';
 import { verifyTvdbKey } from '$lib/server/tvdb/client';
+import { syncLibrary } from '$lib/server/sync/library';
+import { backfillWatchHistory } from '$lib/server/sync/history';
+import { repairOrphanedTrackParents } from '$lib/server/sync/media-item';
 import type { Actions, PageServerLoad } from './$types';
 import type { RequestEvent } from '@sveltejs/kit';
 
@@ -24,8 +30,20 @@ function str(form: FormData, key: string): string {
 
 export const load: PageServerLoad = async (event) => {
 	requireAdmin(event);
-	const [settings, source] = await Promise.all([getAppSettings(), getAppSettingsSource()]);
-	return { settings, source };
+	const [settings, source, [userCount], [mediaCount], [historyCount]] = await Promise.all([
+		getAppSettings(),
+		getAppSettingsSource(),
+		db.select({ value: count() }).from(users),
+		db.select({ value: count() }).from(mediaItems),
+		db.select({ value: count() }).from(watchHistory)
+	]);
+	return {
+		settings,
+		source,
+		userCount: userCount.value,
+		mediaCount: mediaCount.value,
+		historyCount: historyCount.value
+	};
 };
 
 export const actions: Actions = {
@@ -107,5 +125,24 @@ export const actions: Actions = {
 		const form = await event.request.formData();
 		await updateAppSettings({ twentyFourHourTime: str(form, 'value') === 'true' });
 		return { success: true };
+	},
+
+	sync: async (event) => {
+		const user = requireAdmin(event);
+
+		try {
+			const library = await syncLibrary();
+			const history = user.plexAccountId
+				? await backfillWatchHistory(user.id, user.plexAccountId)
+				: { entriesSeen: 0, entriesInserted: 0 };
+			const repair = await repairOrphanedTrackParents();
+
+			return { card: 'sync' as const, success: true, library, history, repair };
+		} catch (err) {
+			return fail(502, {
+				card: 'sync' as const,
+				message: err instanceof Error ? err.message : 'Sync failed'
+			});
+		}
 	}
 };

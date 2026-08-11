@@ -17,6 +17,7 @@
 	let twentyFourHourTime = $state(data.settings.twentyFourHourTime);
 	let accentPending = $state<AccentColor | null>(null);
 	let timeTogglePending = $state(false);
+	let syncing = $state(false);
 
 	const webhookUrl = $derived(
 		data.settings.plexWebhookToken
@@ -187,6 +188,52 @@
 	</form>
 </div>
 
+<h2 class="section-headline">Library Sync</h2>
+
+<div class="card">
+	<dl class="stats">
+		<div>
+			<dt>Users</dt>
+			<dd>{data.userCount}</dd>
+		</div>
+		<div>
+			<dt>Media items</dt>
+			<dd>{data.mediaCount}</dd>
+		</div>
+		<div>
+			<dt>Watch history entries</dt>
+			<dd>{data.historyCount}</dd>
+		</div>
+	</dl>
+
+	<form
+		method="POST"
+		action="?/sync"
+		use:enhance={() => {
+			syncing = true;
+			return async ({ update }) => {
+				await update();
+				syncing = false;
+			};
+		}}
+	>
+		<button type="submit" class="primary" disabled={syncing}
+			>{syncing ? 'Syncing…' : 'Sync now'}</button
+		>
+	</form>
+
+	{#if form?.card === 'sync' && form.success}
+		<p class="success">
+			Synced {form.library.itemsUpserted} library items, {form.history.entriesInserted} new history entries{form
+				.library.watchedFromViewCount > 0
+				? `, ${form.library.watchedFromViewCount} watched status repaired from Plex`
+				: ''}{form.repair.fixed > 0 ? `, repaired ${form.repair.fixed} track-to-album links` : ''}.
+		</p>
+	{:else if form?.card === 'sync' && form.message}
+		<p class="error">{form.message}</p>
+	{/if}
+</div>
+
 <h2 class="section-headline">Metadata Sources</h2>
 
 <div class="card">
@@ -277,6 +324,20 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1.25rem;
+	}
+	.stats {
+		display: flex;
+		gap: 2.5rem;
+		margin: 0 0 1.25rem;
+	}
+	.stats dt {
+		font-size: 0.85rem;
+		opacity: 0.65;
+	}
+	.stats dd {
+		margin: 0;
+		font-size: 1.75rem;
+		font-weight: 600;
 	}
 	.field {
 		display: flex;
