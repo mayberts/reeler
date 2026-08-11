@@ -252,11 +252,20 @@
 
 {#if data.credits && data.credits.crew.length > 0}
 	<h2 class="section-headline">Crew</h2>
-	<div class="crew-grid">
+	<div class="cast-grid">
 		{#each data.credits.crew as credit (credit.person.id + (credit.job ?? ''))}
-			<a class="crew-item" href={resolve('/people/[id]', { id: credit.person.id })}>
+			<a class="person-card" href={resolve('/people/[id]', { id: credit.person.id })}>
+				<div class="person-photo">
+					{#if credit.person.profileUrl}
+						<img src={credit.person.profileUrl} alt="" loading="lazy" />
+					{:else}
+						<div class="placeholder small" aria-hidden="true">
+							{credit.person.name.charAt(0).toUpperCase()}
+						</div>
+					{/if}
+				</div>
 				<strong>{credit.person.name}</strong>
-				<span>{credit.job}</span>
+				{#if credit.job}<span>{credit.job}</span>{/if}
 			</a>
 		{/each}
 	</div>
@@ -587,24 +596,6 @@
 		height: 100%;
 		object-fit: cover;
 		display: block;
-	}
-	.crew-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
-		gap: 0.75rem 1.5rem;
-		margin: 1rem 0 2rem;
-	}
-	.crew-item {
-		display: flex;
-		flex-direction: column;
-		gap: 0.1rem;
-		text-decoration: none;
-		color: inherit;
-		font-size: 0.85rem;
-	}
-	.crew-item span {
-		color: var(--ink-muted);
-		font-size: 0.78rem;
 	}
 	.seasons-grid {
 		display: grid;
