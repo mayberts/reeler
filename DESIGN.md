@@ -1569,6 +1569,41 @@ cast members (over the cap) correctly showed exactly 20 cards plus the
 one with 3 cast members (under the cap) showed all 3 cards and
 correctly did _not_ show the link. Typecheck, lint, and build clean.
 
+### Settings page: tabs instead of one long scroll
+
+The Settings page had grown to four stacked cards (Plex Connection,
+Library Sync, Metadata Sources, Display) in a single vertical list,
+making it a long scroll to reach anything past the first section.
+Split it into a left sidebar nav with four tabs, each showing only its
+own section — all the existing per-section markup, form actions, and
+result-message logic moved unchanged into `{#if activeTab === '...'}`
+blocks, no behavioral changes within a section.
+
+The active tab is kept in the URL (`?tab=sync`, etc.) via
+`replaceState`, not local-only `$state`, so a link elsewhere in the
+app can point straight at e.g. Settings → Metadata, and the tab
+survives a page refresh instead of always bouncing back to the first
+one. Read on init from `page.url.searchParams`, defaulting to `plex`
+for an unset or unrecognized value.
+
+`svelte/no-navigation-without-resolve` requires the first argument to
+`replaceState` to be a direct `resolve()` call (it doesn't unwrap
+template literals or string concatenation looking for one). SvelteKit's
+`resolve()` accepts a pathname with its query string already attached,
+so `replaceState(resolve(\`/settings?tab=${tab}\`), {})` satisfies the
+rule directly instead of building the URL separately and interpolating
+a resolved path into it.
+
+On mobile the sidebar nav switches to a wrapping horizontal row above
+the content instead of a fixed-width column, so it doesn't eat
+horizontal space on a narrow screen.
+
+Verified with a seeded admin session: each tab shows only its own
+section, clicking a tab updates the URL without a full page
+reload, and reloading on a non-default tab (`?tab=display`) stays on
+that tab instead of resetting to Plex Connection. Checked the mobile
+layout at 375px width. Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
