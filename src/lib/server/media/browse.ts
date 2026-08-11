@@ -38,7 +38,11 @@ export async function browseMediaByType(type: MediaType, userId: string, filters
 	const { search, sort, genres, watched, page } = filters;
 
 	const conditions = [eq(mediaItems.type, type)];
-	if (search) conditions.push(like(mediaItems.title, `%${search}%`));
+	if (search) {
+		conditions.push(
+			or(like(mediaItems.title, `%${search}%`), like(mediaItems.artist, `%${search}%`))!
+		);
+	}
 	if (genres.length > 0) {
 		// genres is a JSON-encoded string array (e.g. `["Drama","Thriller"]`) — no separate
 		// genre table, so this matches on the literal quoted tag rather than a real join.

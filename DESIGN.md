@@ -1604,6 +1604,28 @@ reload, and reloading on a non-default tab (`?tab=display`) stays on
 that tab instead of resetting to Plex Connection. Checked the mobile
 layout at 375px width. Typecheck, lint, and build clean.
 
+### Music search now matches artist, not just album title
+
+The Music page's search box only filtered on `mediaItems.title`, so
+searching an artist's name (e.g. "eminem") found nothing unless it
+happened to also appear in an album title — surprising on a page
+that's otherwise organized around artists (sortable by Artist,
+grouped visually by cover art). Changed `browseMediaByType`'s search
+condition to `OR` a `LIKE` match against `mediaItems.artist` alongside
+the existing title match. `artist` is only ever set on albums (null
+for movies/shows), so this is a no-op for the Movies/Shows pages that
+share the same function.
+
+Also added a `searchPlaceholder` prop to `MediaBrowseGrid` (default
+"Filter by title", unchanged for Movies/Shows) so the Music page can
+say "Filter by album or artist" instead, since the box now does more
+than the generic placeholder implied.
+
+Verified against four seeded albums (two by the same artist, two by
+different artists): searching the shared artist's name returned both
+of their albums; searching an album title returned just that album;
+a non-matching query returned zero results.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

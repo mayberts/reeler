@@ -39,6 +39,8 @@
 		showWatched?: boolean;
 		/** Overrides the default Title/Year/Recently added options — e.g. music swaps in Album/Artist. */
 		sortOptions?: SortOption[];
+		/** Overrides the search box's placeholder — e.g. music mentions artist too, since the search matches both. */
+		searchPlaceholder?: string;
 		genres: string[];
 		watched: BrowseWatched | null;
 		availableGenres: string[];
@@ -63,6 +65,7 @@
 		square = false,
 		showWatched = true,
 		sortOptions = defaultSortOptions,
+		searchPlaceholder = 'Filter by title',
 		genres,
 		watched,
 		availableGenres,
@@ -108,7 +111,7 @@
 	</div>
 
 	<form method="GET" class="controls">
-		<input type="search" name="q" placeholder="Filter by title" value={search} />
+		<input type="search" name="q" placeholder={searchPlaceholder} value={search} />
 		<select name="sort" onchange={(event) => event.currentTarget.form?.requestSubmit()}>
 			{#each sortOptions as option (option.value)}
 				<option value={option.value} selected={sort === option.value}>{option.label}</option>
