@@ -167,13 +167,6 @@ export interface PlexMetadataItem {
 	parentTitle?: string;
 	/** Relative path to the poster image, e.g. `/library/metadata/123/thumb/169...`. */
 	thumb?: string;
-	/**
-	 * Relative path to the *parent's* poster image — e.g. the containing album's cover
-	 * for a track. Plex tracks almost never carry their own `thumb` (a track has no
-	 * artwork distinct from its album), so this is the fallback used to give tracks a
-	 * cover at all. Present on the same payloads that carry `parentRatingKey`/`parentTitle`.
-	 */
-	parentThumb?: string;
 	/** Relative path to the backdrop/art image. */
 	art?: string;
 	tagline?: string;

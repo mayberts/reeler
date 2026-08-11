@@ -87,6 +87,13 @@ export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promis
 
 	const parentType = PARENT_TYPE[type];
 	let parentId: string | null = null;
+	// A track's own cover, once the parent album has been upserted above (see
+	// `plexThumb` below) — read back from our own DB rather than trusted from Plex's
+	// payload directly. An earlier version of this tried Plex's own `parentThumb` field,
+	// but that isn't reliably present on real track payloads (sparse history entries or
+	// the enriched per-item lookup); the album's own row, upserted just above, always has
+	// the right cover already, since that's populated the same way a plain album row is.
+	let parentPlexThumb: string | null = null;
 	if (parentType && item.parentRatingKey && item.parentTitle) {
 		parentId = await upsertMediaItemFromPlex({
 			ratingKey: item.parentRatingKey,
@@ -97,6 +104,13 @@ export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promis
 			// correctly even before a full library sync fills in the rest.
 			index: type === 'episode' ? item.parentIndex : undefined
 		});
+		if (type === 'track' && parentId) {
+			const parent = await db.query.mediaItems.findFirst({
+				where: eq(mediaItems.id, parentId),
+				columns: { plexThumb: true }
+			});
+			parentPlexThumb = parent?.plexThumb ?? null;
+		}
 	}
 
 	const existing = await db.query.mediaItems.findFirst({
@@ -126,13 +140,11 @@ export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promis
 		plexRatingKey: item.ratingKey,
 		parentId: parentId ?? existing?.parentId ?? null,
 		// Tracks almost never carry their own `thumb` in Plex — a track has no artwork
-		// distinct from its album's cover — so fall back to the parent's poster
-		// (`parentThumb`) before giving up and falling back to whatever's already stored.
+		// distinct from its album's cover — so fall back to the parent album's own cover
+		// (looked up from our DB above) before giving up and falling back to whatever's
+		// already stored.
 		plexThumb:
-			item.thumb ??
-			(type === 'track' ? item.parentThumb : undefined) ??
-			existing?.plexThumb ??
-			null,
+			item.thumb ?? (type === 'track' ? parentPlexThumb : undefined) ?? existing?.plexThumb ?? null,
 		plexArt: item.art ?? existing?.plexArt ?? null,
 		tagline: item.tagline ?? existing?.tagline ?? null,
 		summary: item.summary ?? existing?.summary ?? null,
