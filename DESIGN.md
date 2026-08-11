@@ -1362,6 +1362,37 @@ TMDb (no local match); reloading the movie page served the same cast
 from the cache with no further TMDb call. Typecheck, lint, and build
 all clean.
 
+### Fixed: movie/show pages 500ing after the cast/crew PR
+
+Reported right after the cast/crew feature shipped: "nothing is
+showing for movies or shows." Root cause: `getOrFetchCredits`'s very
+first query reads the new `credits` table, with no guard around it —
+on a deployment that hasn't re-applied the schema since those tables
+were added (a container that hasn't restarted/redeployed yet, since
+that's what runs `drizzle-kit push`; or a local `npm run dev` against
+an existing DB file, which never runs it at all), that query throws
+`SqliteError: no such table: credits`, uncaught, which propagates out
+of the detail page's `load()` entirely — a 500 for every movie/show
+page, while episode/track/album pages kept working fine (they return
+early before ever touching the new tables), matching the report
+exactly.
+
+Wrapped the whole body of `getOrFetchCredits` in a try/catch — cast/
+crew is a supplementary section, and losing it (missing tables, a
+TMDb error, anything) must never take the rest of the detail page down
+with it. Reproduced the exact failure first (seeded a DB with the
+pre-this-PR schema — no `people`/`credits` tables — and confirmed a
+`500`/`SqliteError: no such table: credits` on `/media/[id]`), then
+verified the fix turns that into a normal `200` with the cast section
+simply absent and the error logged server-side instead. Re-ran the
+existing mocked-TMDb happy-path check too, to confirm the fix didn't
+regress the working case — cast/crew still renders correctly. The
+underlying "why doesn't this deployment have the new tables yet"
+question is a redeploy/restart the user needs to do on their end
+(or `npm run db:push` for a bare `npm run dev` setup) — this fix
+just stops a stale schema from being able to break the page while
+that happens. Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
