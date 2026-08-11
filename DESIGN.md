@@ -1137,6 +1137,34 @@ visually at 1200px in both light and dark color schemes — the hero is
 now ~400px tall (was ~200px) with the backdrop clearly visible above
 the heading. Typecheck, lint, and build clean.
 
+### Moved library stats + sync button from Dashboard to Settings
+
+The user-facing stats (Users/Media items/Watch history entries) and
+"Sync now" button had been sitting on the Dashboard since before
+Settings existed. Now that Settings exists and already owns every
+other piece of sync-adjacent config (Plex connection, metadata
+sources), triggering a sync from Dashboard was the odd one out —
+moved both into a new "Library Sync" card on Settings, right after
+Plex Connection.
+
+The `sync` server action moved with it, now behind the same
+`requireAdmin` guard as every other Settings action — previously any
+signed-in user could trigger a sync from Dashboard; now it's
+admin-only, consistent with the rest of Settings being admin-gated.
+Dashboard's empty-history message ("Nothing watched yet…") now reads
+differently depending on the viewer: admins get a link to Settings,
+non-admins get "ask an admin to run a sync" instead, since a
+non-admin hitting a 403 on `/settings` would be a dead end.
+
+Verified against a seeded DB with one admin and one non-admin user:
+Dashboard no longer renders `.stats` or a Sync button for either;
+Settings' new Library Sync card shows the stats and a working Sync
+button (clicking it round-trips through the real `sync` action and
+surfaces the result/error inline, same as Dashboard's old behavior);
+the non-admin sees neither a Settings nav link nor the admin wording,
+and still gets a 403 hitting `/settings` directly (pre-existing
+guard, unchanged). Typecheck, lint, and build all clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

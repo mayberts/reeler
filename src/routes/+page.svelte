@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	import MediaCard from '$lib/components/MediaCard.svelte';
 
-	let { data, form } = $props();
-	let syncing = $state(false);
+	let { data } = $props();
 
 	const backdropSrc = $derived(data.heroItem ? `/api/media/${data.heroItem.id}/backdrop` : null);
 </script>
@@ -15,48 +14,6 @@
 	{/if}
 	<h1>Dashboard</h1>
 </div>
-
-<dl class="stats">
-	<div>
-		<dt>Users</dt>
-		<dd>{data.userCount}</dd>
-	</div>
-	<div>
-		<dt>Media items</dt>
-		<dd>{data.mediaCount}</dd>
-	</div>
-	<div>
-		<dt>Watch history entries</dt>
-		<dd>{data.historyCount}</dd>
-	</div>
-</dl>
-
-<form
-	method="POST"
-	action="?/sync"
-	use:enhance={() => {
-		syncing = true;
-		return async ({ update }) => {
-			await update();
-			syncing = false;
-		};
-	}}
->
-	<button type="submit" class="primary" disabled={syncing}
-		>{syncing ? 'Syncing…' : 'Sync now'}</button
-	>
-</form>
-
-{#if form?.success}
-	<p class="sync-result">
-		Synced {form.library.itemsUpserted} library items, {form.history.entriesInserted} new history entries{form
-			.library.watchedFromViewCount > 0
-			? `, ${form.library.watchedFromViewCount} watched status repaired from Plex`
-			: ''}{form.repair.fixed > 0 ? `, repaired ${form.repair.fixed} track-to-album links` : ''}.
-	</p>
-{:else if form?.message}
-	<p class="sync-error">{form.message}</p>
-{/if}
 
 {#if data.recentMovies.length > 0}
 	<h2 class="section-headline">Recently added movies</h2>
@@ -89,7 +46,9 @@
 <h2 class="section-headline">Recent activity</h2>
 {#if data.recentHistory.length === 0}
 	<p class="empty">
-		Nothing watched yet — run a sync above once your Plex account has some history.
+		Nothing watched yet — {#if data.user?.isAdmin}run a sync from <a href={resolve('/settings')}
+				>Settings</a
+			>{:else}ask an admin to run a sync{/if} once your Plex account has some history.
 	</p>
 {:else}
 	<div class="card-grid">
@@ -151,25 +110,5 @@
 	}
 	.hero.has-backdrop h1 {
 		text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
-	}
-	.stats {
-		display: flex;
-		gap: 2.5rem;
-		margin: 1.5rem 0;
-	}
-	.stats dt {
-		font-size: 0.85rem;
-		opacity: 0.65;
-	}
-	.stats dd {
-		margin: 0;
-		font-size: 1.75rem;
-		font-weight: 600;
-	}
-	.sync-result {
-		color: var(--success);
-	}
-	.sync-error {
-		color: var(--danger);
 	}
 </style>
