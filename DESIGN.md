@@ -1658,6 +1658,41 @@ fetch, ended up with `plex_thumb` set to the parent album's cover path
 — confirmed directly against the seeded database. Typecheck, lint,
 and build clean.
 
+### The track-cover fix above didn't actually work — `parentThumb` isn't there either
+
+After deploying the previous fix and re-running "Pull history from
+Plex," track rows in Watch history still showed no cover. The fix
+trusted Plex to include a `parentThumb` field on a track's payload
+(either the sparse history entry or the enriched per-item lookup) —
+that assumption was wrong for this server; real track payloads don't
+reliably carry it either, only the mocked test data did.
+
+Replaced it with something not dependent on guessing Plex's field
+names at all: since the parent album is always upserted right before
+the track (to resolve `parentId`), and album rows demonstrably do end
+up with a correct `plexThumb` (that's why Album rows in Watch history
+already looked right), the track now just reads its freshly-upserted
+parent's own `plexThumb` back out of the database and copies it,
+instead of trusting a field on Plex's response. Removed the unused
+`parentThumb` field from `PlexMetadataItem` entirely, since nothing
+reads it anymore.
+
+If the album's own row doesn't have a cover yet at the moment a track
+is being upserted (e.g. the album's own history entry, which is what
+actually triggers its enrichment, hasn't been processed yet in the
+same run), the track is left without one for that pass — but every
+field here is re-derived on every upsert, so a later re-run of "Pull
+history from Plex" (once the album row has caught up) fills it in the
+same way a fresh sync would. No backfill script needed, same as
+before.
+
+Verified against the specific failure mode this replaces: a mocked
+Plex server that omits `parentThumb` from every response (the exact
+shape that broke the previous version) still resulted in the track's
+`plex_thumb` being correctly set, because the fix no longer looks for
+that field at all — it now reads the parent album's own already-stored
+cover instead. Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
