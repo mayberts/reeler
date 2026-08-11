@@ -3,6 +3,10 @@
 	import { resolve } from '$app/paths';
 	import EpisodeRow from '$lib/components/EpisodeRow.svelte';
 
+	// Matches the cap `getTmdbCredits` applies server-side — used only to decide whether
+	// to show a "there may be more" link, not to do any trimming here.
+	const CAST_LIMIT = 20;
+
 	let { data, form } = $props();
 
 	const item = $derived(data.item);
@@ -230,7 +234,19 @@
 {/if}
 
 {#if data.credits && data.credits.cast.length > 0}
-	<h2 class="section-headline">Top Cast</h2>
+	<div class="section-header-row">
+		<h2 class="section-headline">Top Cast</h2>
+		{#if data.credits.cast.length >= CAST_LIMIT && item.tmdbId}
+			<a
+				class="tmdb-link"
+				href={`https://www.themoviedb.org/${item.type === 'movie' ? 'movie' : 'tv'}/${item.tmdbId}/cast`}
+				target="_blank"
+				rel="external noopener noreferrer"
+			>
+				View full cast on TMDb &rarr;
+			</a>
+		{/if}
+	</div>
 	<div class="cast-grid">
 		{#each data.credits.cast as credit (credit.person.id)}
 			<a class="person-card" href={resolve('/people/[id]', { id: credit.person.id })}>
@@ -564,6 +580,29 @@
 		background: light-dark(rgba(255, 255, 255, 0.82), rgba(0, 0, 0, 0.5));
 	}
 	.ext-badge:hover {
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+	.section-header-row {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+	}
+	.section-header-row .section-headline {
+		margin: 2.25rem 0 0;
+	}
+	.tmdb-link {
+		border: 1px solid light-dark(rgba(0, 0, 0, 0.15), rgba(255, 255, 255, 0.18));
+		border-radius: var(--radius-sm);
+		padding: 0.2rem 0.6rem;
+		font-size: 0.75rem;
+		font-weight: 700;
+		text-decoration: none;
+		color: var(--ink-secondary);
+	}
+	.tmdb-link:hover {
 		border-color: var(--accent);
 		color: var(--accent);
 	}

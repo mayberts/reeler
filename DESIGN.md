@@ -1542,6 +1542,33 @@ credit: both now render as photo cards (profile photo or initial
 placeholder, name, job) inside the same grid layout Cast uses, visibly
 consistent with it. Typecheck, lint, and build clean.
 
+### "View full cast on TMDb" hint when cast is truncated
+
+`getTmdbCredits` caps cast at 20 (TMDb's own billing order) with no
+indication to the viewer that a title's real cast might be longer —
+someone looking at a 20-person cast list had no way to tell whether
+that was everyone or just where the cap kicked in. Added a "View full
+cast on TMDb" link next to the "Top Cast" heading, shown whenever the
+stored cast count is at or above the cap (`CAST_LIMIT = 20`, matching
+`getTmdbCredits`'s slice — duplicated as a client-side constant with a
+comment noting the coupling, rather than trying to import the
+server-only value into a `.svelte` file). Reuses the same
+`.section-header-row`/`.tmdb-link` pattern already established on the
+person page's "See full filmography" link, for visual consistency.
+
+Didn't try to show an exact "+N more" count — that would need
+persisting the title's true total cast size somewhere (a new
+`media_items` column, or similar), since the local `credits` table
+only ever stores the already-capped 20 rows. A link to TMDb's own full
+cast page needs no extra schema and matches the filmography link's
+existing "here's more, go look" pattern instead of a precise number.
+
+Verified against two seeded movies with a mocked TMDb: one with 25
+cast members (over the cap) correctly showed exactly 20 cards plus the
+"View full cast" link, linking to `themoviedb.org/movie/{id}/cast`;
+one with 3 cast members (under the cap) showed all 3 cards and
+correctly did _not_ show the link. Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
