@@ -1489,6 +1489,45 @@ page, and the section worked correctly with zero TMDb network access
 (proving it's fully independent of TMDb availability, as intended).
 Typecheck, lint, and build clean.
 
+### "In Your Library" was missing titles never individually visited
+
+Reported directly: a user knew they had more Harrison Ford titles in
+their library than the section showed. Working as designed at the
+time, but the design itself was the problem — "In Your Library" only
+read the local `credits` table, which only has a row for a (person,
+title) pair once _that specific title's own detail page_ has been
+opened at least once (`getOrFetchCredits` is lazy, per-title). A
+library with dozens of Harrison Ford titles would only show the
+handful whose pages happened to have been clicked into already, with
+no indication anything was missing — exactly what got reported.
+
+Fixed by adding a second source: TMDb's full (uncapped) combined-
+credits list for the person, cross-referenced against the local
+library by `tmdbId` — the same person page already fetches this same
+endpoint for "Known For" (previously capped to the top 8 by
+popularity for that strip); `getTmdbPersonAllCredits` reuses the same
+underlying fetch/parse (refactored into a shared
+`getPersonCombinedCredits`) without the cap. This catches every title
+the person's actually credited on that's in the library right now,
+without waiting for each one's own page to be visited first.
+
+The local `credits` table still wins when both sources cover the same
+title — it can show _multiple_ merged roles (an actor-director's
+"Happy Hogan · Director"), where TMDb's combined-credits list only
+ever picks one credit per title (its own dedup, by popularity). So
+the fix is additive: local data fills in normally, and the TMDb cross-
+reference now closes the gap only for titles the local table hasn't
+caught up to yet — never overrides a title source 1 already covers.
+
+Verified against a seeded Harrison Ford with two local titles: one
+with a pre-existing local `credits` row ("Indiana Jones"), one with no
+local credits row at all but a matching `tmdbId` in the library (the
+exact case that was silently dropped before). Both now appear; the
+first shows its local role, unchanged; the second — previously
+invisible — now shows "Han Solo" from the TMDb cross-reference,
+correctly linking to its real local `/media/[id]` page. Typecheck,
+lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

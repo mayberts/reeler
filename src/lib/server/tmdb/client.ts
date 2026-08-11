@@ -281,6 +281,10 @@ export interface TmdbKnownForItem {
 	year: number | null;
 	mediaType: 'movie' | 'show';
 	posterUrl: string | null;
+	/** Character name (cast) or job title (crew) — whichever this particular credit is,
+	 *  the more prominent one if both (TMDb's own popularity ranking already picked one
+	 *  entry per title, see the dedup below). */
+	role: string | null;
 }
 
 interface TmdbCombinedCreditsItem {
@@ -292,6 +296,8 @@ interface TmdbCombinedCreditsItem {
 	first_air_date?: string;
 	poster_path?: string | null;
 	popularity?: number;
+	character?: string;
+	job?: string;
 }
 
 interface TmdbCombinedCreditsResponse {
@@ -300,12 +306,19 @@ interface TmdbCombinedCreditsResponse {
 }
 
 /**
- * A person's most notable movie/TV credits — a "Known For" strip on their page, purely
- * a browsing aid (not persisted; Reeler doesn't track titles outside what's actually in
- * the library, and a "known for" list drifts as a career progresses anyway, so it's
- * re-fetched live on every view rather than cached like the person's own bio is).
+ * Every movie/TV credit a person has, sorted by TMDb's own popularity ranking, deduped
+ * to one entry per title (a title where they're both cast and crew keeps whichever
+ * credit is more popular/prominent — this is TMDb's raw list, not a Reeler-curated
+ * merge like `getOrFetchCredits` does for the local `credits` table). Not persisted —
+ * Reeler doesn't track titles outside what's actually in the library, and this list
+ * drifts as a career progresses anyway, so it's re-fetched live on every view rather
+ * than cached like the person's own bio is. Callers slice this down for different
+ * purposes: `getTmdbPersonKnownFor` caps it to a "Known For" strip; the person page
+ * also cross-references the *full* list against the local library id-for-id, since
+ * relying on `credits` rows alone would only surface titles whose own detail page had
+ * already been opened at least once.
  */
-export async function getTmdbPersonKnownFor(tmdbId: string): Promise<TmdbKnownForItem[]> {
+async function getPersonCombinedCredits(tmdbId: string): Promise<TmdbKnownForItem[]> {
 	const token = await getTmdbReadAccessToken();
 	if (!token) return [];
 
@@ -318,9 +331,12 @@ export async function getTmdbPersonKnownFor(tmdbId: string): Promise<TmdbKnownFo
 	}
 
 	const data: TmdbCombinedCreditsResponse = await response.json();
-	const all = [...(data.cast ?? []), ...(data.crew ?? [])];
+	const all = [
+		...(data.cast ?? []).map((item) => ({ ...item, role: item.character ?? null })),
+		...(data.crew ?? []).map((item) => ({ ...item, role: item.job ?? null }))
+	];
 
-	const byId = new Map<number, TmdbCombinedCreditsItem>();
+	const byId = new Map<number, TmdbCombinedCreditsItem & { role: string | null }>();
 	for (const item of all) {
 		if (item.media_type !== 'movie' && item.media_type !== 'tv') continue;
 		const existing = byId.get(item.id);
@@ -329,12 +345,26 @@ export async function getTmdbPersonKnownFor(tmdbId: string): Promise<TmdbKnownFo
 
 	return Array.from(byId.values())
 		.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
-		.slice(0, 8)
 		.map((item) => ({
 			tmdbId: String(item.id),
 			title: item.title ?? item.name ?? 'Untitled',
 			year: parseYear(item.release_date ?? item.first_air_date),
 			mediaType: (item.media_type === 'movie' ? 'movie' : 'show') as 'movie' | 'show',
-			posterUrl: item.poster_path ? `${TMDB_IMAGE_BASE}${item.poster_path}` : null
+			posterUrl: item.poster_path ? `${TMDB_IMAGE_BASE}${item.poster_path}` : null,
+			role: item.role
 		}));
+}
+
+/** A person's most notable movie/TV credits — a "Known For" strip on their page. */
+export async function getTmdbPersonKnownFor(tmdbId: string): Promise<TmdbKnownForItem[]> {
+	const all = await getPersonCombinedCredits(tmdbId);
+	return all.slice(0, 8);
+}
+
+/** Every movie/TV credit a person has, uncapped — used to find every title in the
+ *  local library they've worked on, not just their most popular ~8 (see
+ *  `getPersonCombinedCredits`'s docstring for why capping to 8 alone isn't enough for
+ *  that use case). */
+export async function getTmdbPersonAllCredits(tmdbId: string): Promise<TmdbKnownForItem[]> {
+	return getPersonCombinedCredits(tmdbId);
 }
