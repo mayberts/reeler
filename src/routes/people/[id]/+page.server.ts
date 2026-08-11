@@ -5,6 +5,7 @@ import { people, mediaItems, credits, type MediaItem } from '$lib/server/db/sche
 import {
 	getTmdbPerson,
 	getTmdbPersonKnownFor,
+	getTmdbPersonAllCredits,
 	type TmdbKnownForItem
 } from '$lib/server/tmdb/client';
 import type { PageServerLoad } from './$types';
@@ -52,12 +53,18 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			: [];
 	const localIdByTmdbId = new Map(localMatches.map((m) => [m.tmdbId, m.id]));
 
-	// Every title in *this* library this person has a credit on — distinct from "Known
-	// For" above (TMDb's own list, live, can include titles never seen here at all).
-	// Only reflects titles whose own cast/crew has actually been fetched already (see
-	// getOrFetchCredits — it's lazy, per-title, not a sync-time crawl of every person's
-	// entire history), so this fills in gradually rather than being complete from the
-	// first page view.
+	// Every title in *this* library this person has worked on — distinct from "Known
+	// For" above (TMDb's top-8-by-popularity strip). Two sources, combined:
+	//
+	// 1. The local `credits` table — accurate, can show *every* role a person has on a
+	//    title (e.g. "Happy Hogan · Director" for an actor-director), but only exists
+	//    for titles whose own cast/crew has actually been fetched already
+	//    (getOrFetchCredits is lazy, per-title, not a sync-time crawl).
+	// 2. TMDb's full (uncapped) combined-credits list, cross-referenced against the
+	//    local library by tmdbId — catches every other title the person's actually in
+	//    *right now*, without waiting for someone to open each one's own page first.
+	//    Only ever shows one role per title this way (TMDb's own dedup), not a merged
+	//    list like source 1 can — source 1 wins for any title both cover.
 	const localCredits = await db.query.credits.findMany({
 		where: eq(credits.personId, person.id),
 		with: { mediaItem: true }
@@ -72,6 +79,28 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		if (role) entry.roles.push(role);
 		inLibraryByItem.set(credit.mediaItemId, entry);
 	}
+
+	let allCredits: TmdbKnownForItem[];
+	try {
+		allCredits = await getTmdbPersonAllCredits(person.tmdbId);
+	} catch (err) {
+		console.error('[people] failed to fetch full credits from TMDb', { id: person.id }, err);
+		allCredits = [];
+	}
+	const allCreditsTmdbIds = allCredits.map((c) => c.tmdbId);
+	const libraryMatches =
+		allCreditsTmdbIds.length > 0
+			? await db.query.mediaItems.findMany({
+					where: inArray(mediaItems.tmdbId, allCreditsTmdbIds)
+				})
+			: [];
+	const roleByTmdbId = new Map(allCredits.map((c) => [c.tmdbId, c.role]));
+	for (const mediaItem of libraryMatches) {
+		if (!mediaItem.tmdbId || inLibraryByItem.has(mediaItem.id)) continue;
+		const role = roleByTmdbId.get(mediaItem.tmdbId);
+		inLibraryByItem.set(mediaItem.id, { mediaItem, roles: role ? [role] : [] });
+	}
+
 	const inLibrary = Array.from(inLibraryByItem.values())
 		.map(({ mediaItem, roles }) => ({
 			id: mediaItem.id,
