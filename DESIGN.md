@@ -1528,6 +1528,20 @@ invisible — now shows "Han Solo" from the TMDb cross-reference,
 correctly linking to its real local `/media/[id]` page. Typecheck,
 lint, and build clean.
 
+### Crew now gets photo cards, matching Cast
+
+Crew previously rendered as a plain text list (name + job) while Cast
+got full photo cards — an inconsistency, not a deliberate choice.
+Switched Crew to reuse the exact same `.cast-grid`/`.person-card`
+markup and styling Cast already uses, just fed `job` instead of
+`character` as the caption. Removed the now-unused `.crew-grid`/
+`.crew-item` styles rather than leaving dead CSS behind.
+
+Verified against a seeded movie with a mocked Director and Writer
+credit: both now render as photo cards (profile photo or initial
+placeholder, name, job) inside the same grid layout Cast uses, visibly
+consistent with it. Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
