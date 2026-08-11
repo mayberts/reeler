@@ -1437,6 +1437,24 @@ button in Settings; confirmed both were now correctly populated
 (`999`/`tt999` from the mock) afterward. Typecheck, lint, and build
 clean.
 
+### Person page: link to the full TMDb filmography
+
+"Known For" deliberately caps at a person's 8 most popular credits
+(see the cast/crew entry above) rather than their whole filmography —
+by design, not a bug, but there was no way to see everything beyond
+those 8. Added a "See full filmography on TMDb" link next to the
+"Known For" heading, pointing at `themoviedb.org/person/{tmdbId}` —
+TMDb's own person page already lists both movies and TV credits
+together in one place, so a single link covers both. Shown regardless
+of whether any "Known For" items loaded (a person row's `tmdbId` is
+always present, unlike the live-fetched known-for list, which can
+come back empty), with an explicit empty-state message in that case
+rather than a bare gap.
+
+Verified against a seeded person: the link's href resolved to the
+correct `themoviedb.org/person/{tmdbId}` URL and opens in a new tab.
+Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

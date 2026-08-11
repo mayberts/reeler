@@ -54,8 +54,18 @@
 			{/each}
 		{/if}
 
-		{#if data.knownFor.length > 0}
+		<div class="section-header-row">
 			<h2 class="section-headline">Known For</h2>
+			<a
+				class="tmdb-link"
+				href={`https://www.themoviedb.org/person/${person.tmdbId}`}
+				target="_blank"
+				rel="external noopener noreferrer"
+			>
+				See full filmography on TMDb &rarr;
+			</a>
+		</div>
+		{#if data.knownFor.length > 0}
 			<div class="known-for-grid">
 				{#each data.knownFor as title (title.tmdbId)}
 					{#if title.localId}
@@ -88,6 +98,8 @@
 					{/if}
 				{/each}
 			</div>
+		{:else}
+			<p class="empty">No notable credits found.</p>
 		{/if}
 	</div>
 </div>
@@ -153,6 +165,29 @@
 	}
 	.bio-paragraph {
 		max-width: 46rem;
+	}
+	.section-header-row {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+	}
+	.section-header-row .section-headline {
+		margin: 2.25rem 0 0;
+	}
+	.tmdb-link {
+		border: 1px solid light-dark(rgba(0, 0, 0, 0.15), rgba(255, 255, 255, 0.18));
+		border-radius: var(--radius-sm);
+		padding: 0.2rem 0.6rem;
+		font-size: 0.75rem;
+		font-weight: 700;
+		text-decoration: none;
+		color: var(--ink-secondary);
+	}
+	.tmdb-link:hover {
+		border-color: var(--accent);
+		color: var(--accent);
 	}
 	.known-for-grid {
 		display: grid;
