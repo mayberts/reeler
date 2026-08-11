@@ -54,6 +54,25 @@
 			{/each}
 		{/if}
 
+		{#if data.inLibrary.length > 0}
+			<h2 class="section-headline">In Your Library</h2>
+			<div class="known-for-grid">
+				{#each data.inLibrary as title (title.id)}
+					<a class="title-card" href={resolve('/media/[id]', { id: title.id })}>
+						{#if title.hasArtwork}
+							<img src={`/api/media/${title.id}/poster`} alt="" loading="lazy" />
+						{:else}
+							<div class="placeholder small" aria-hidden="true">
+								{title.title.charAt(0).toUpperCase()}
+							</div>
+						{/if}
+						<span>{title.title}</span>
+						{#if title.role}<span class="role">{title.role}</span>{/if}
+					</a>
+				{/each}
+			</div>
+		{/if}
+
 		<div class="section-header-row">
 			<h2 class="section-headline">Known For</h2>
 			<a
@@ -203,6 +222,11 @@
 		color: inherit;
 		font-size: 0.85rem;
 		font-weight: 600;
+	}
+	.title-card .role {
+		color: var(--ink-muted);
+		font-size: 0.75rem;
+		font-weight: 400;
 	}
 	.title-card img,
 	.title-card .placeholder.small {

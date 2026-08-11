@@ -1,8 +1,12 @@
 import { error } from '@sveltejs/kit';
 import { eq, inArray } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { people, mediaItems } from '$lib/server/db/schema';
-import { getTmdbPerson, getTmdbPersonKnownFor } from '$lib/server/tmdb/client';
+import { people, mediaItems, credits, type MediaItem } from '$lib/server/db/schema';
+import {
+	getTmdbPerson,
+	getTmdbPersonKnownFor,
+	type TmdbKnownForItem
+} from '$lib/server/tmdb/client';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -29,7 +33,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		}
 	}
 
-	const knownFor = await getTmdbPersonKnownFor(person.tmdbId);
+	let knownFor: TmdbKnownForItem[];
+	try {
+		knownFor = await getTmdbPersonKnownFor(person.tmdbId);
+	} catch (err) {
+		console.error('[people] failed to fetch known-for credits from TMDb', { id: person.id }, err);
+		knownFor = [];
+	}
 
 	// Link a "Known For" title to its own Reeler page when it's actually in the
 	// library (same tmdbId) — otherwise it links out to TMDb (handled client-side).
@@ -42,8 +52,39 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			: [];
 	const localIdByTmdbId = new Map(localMatches.map((m) => [m.tmdbId, m.id]));
 
+	// Every title in *this* library this person has a credit on — distinct from "Known
+	// For" above (TMDb's own list, live, can include titles never seen here at all).
+	// Only reflects titles whose own cast/crew has actually been fetched already (see
+	// getOrFetchCredits — it's lazy, per-title, not a sync-time crawl of every person's
+	// entire history), so this fills in gradually rather than being complete from the
+	// first page view.
+	const localCredits = await db.query.credits.findMany({
+		where: eq(credits.personId, person.id),
+		with: { mediaItem: true }
+	});
+	const inLibraryByItem = new Map<string, { mediaItem: MediaItem; roles: string[] }>();
+	for (const credit of localCredits) {
+		const entry = inLibraryByItem.get(credit.mediaItemId) ?? {
+			mediaItem: credit.mediaItem,
+			roles: []
+		};
+		const role = credit.role === 'cast' ? credit.character : credit.job;
+		if (role) entry.roles.push(role);
+		inLibraryByItem.set(credit.mediaItemId, entry);
+	}
+	const inLibrary = Array.from(inLibraryByItem.values())
+		.map(({ mediaItem, roles }) => ({
+			id: mediaItem.id,
+			title: mediaItem.title,
+			year: mediaItem.year,
+			hasArtwork: !!(mediaItem.plexThumb || mediaItem.artworkUrl),
+			role: roles.join(' · ')
+		}))
+		.sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
+
 	return {
 		person,
-		knownFor: knownFor.map((k) => ({ ...k, localId: localIdByTmdbId.get(k.tmdbId) ?? null }))
+		knownFor: knownFor.map((k) => ({ ...k, localId: localIdByTmdbId.get(k.tmdbId) ?? null })),
+		inLibrary
 	};
 };

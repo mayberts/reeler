@@ -1455,6 +1455,40 @@ Verified against a seeded person: the link's href resolved to the
 correct `themoviedb.org/person/{tmdbId}` URL and opens in a new tab.
 Typecheck, lint, and build clean.
 
+### Person page: "In Your Library" section
+
+"Known For" is TMDb's own live list — useful, but it's a browsing aid
+for titles that may not even be in the library, not "what do I
+actually own featuring this person." Added a distinct "In Your
+Library" section above it: every title in _this_ Reeler library the
+person has a `credits` row against, a pure local query (no TMDb call)
+against data the app already has. Placed first since it's the more
+actionable of the two — your own collection before a live external
+list.
+
+A person with both a cast and a crew credit on the same title (an
+actor-director, say) merges into one card listing both roles
+("Happy Hogan · Director") rather than two separate entries for the
+same title. Only reflects titles whose own cast/crew has actually
+been fetched already — `getOrFetchCredits` is lazy per-title, not a
+sync-time crawl of every person's full history — so this section fills
+in gradually as more of the library's detail pages get visited, the
+same tradeoff the credits feature itself already accepted.
+
+Incidental hardening while in this file: wrapped the `getTmdbPersonKnownFor`
+call in a try/catch too (it wasn't before) — same "supplementary data
+must never break the page" principle the credits-table crash fix
+already established, applied to the one remaining unguarded TMDb call
+on this page.
+
+Verified against a seeded person credited on two local titles — one
+with both a cast and a crew credit (merged into a single card showing
+"Happy Hogan · Director"), one crew-only ("Writer") — both rendered
+correctly, the cast+crew title linked to its real local `/media/[id]`
+page, and the section worked correctly with zero TMDb network access
+(proving it's fully independent of TMDb availability, as intended).
+Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
