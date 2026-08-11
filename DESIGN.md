@@ -1067,7 +1067,7 @@ discarded on upsert — `PARENT_TYPE` only maps track/episode/season to
 their parent, since artists were deliberately never modeled as their
 own row (nothing to "track" about an artist itself, per the existing
 comment in `media-item.ts`). That reasoning is still right, but it left
-no way to *display* the artist either, real data or not. The manually-
+no way to _display_ the artist either, real data or not. The manually-
 logged (MusicBrainz) path worked around the same gap by folding the
 artist into the title string itself (`"Title — Artist"`), which is a
 display hack, not real data modeling.
@@ -1097,6 +1097,32 @@ labels, and switching to "Artist (A–Z)" sorted null-artist first then
 alphabetically by artist (AC/DC, Buju Banton, Die Antwoord, Onyx x2,
 The Beatles) — matching SQLite's default null-first ASC ordering.
 Typecheck, lint, and production build all clean.
+
+### Dashboard: rotating library backdrop
+
+The dashboard was plain text on the page background — no reason not to
+show off the library, the same way the media detail page's hero
+already does for a single title. Added a hero banner above the
+heading that picks one random item with a real backdrop (`plexArt` or
+`backdropUrl` set) via `ORDER BY RANDOM() LIMIT 1`, reusing the
+existing `/api/media/[id]/backdrop` proxy — no new image-serving code.
+It's picked fresh in the page's `load` function, which SvelteKit
+reruns on every navigation to `/`, so the backdrop changes each time
+the page loads, same as requested.
+
+Reused the same `light-dark()`-per-gradient-stop scrim technique the
+detail page's hero already established (see "Poster art" above) rather
+than inventing a new one — a lone heading needed a simpler single
+vertical fade rather than that page's two-layer horizontal+vertical
+one (no adjacent poster/text column to protect here). Falls back to
+the plain heading with no hero at all when the library has no item
+with a backdrop yet (a fresh, unsynced install).
+
+Verified against a seeded DB of 3 movies with backdrops: 6 consecutive
+loads of `/` picked varying backdrops (not the same one every time),
+each `<img>` resolved through the real proxy route, and the heading
+stayed legible against both a light and dark test image in both light
+and dark color schemes. Typecheck clean.
 
 ## Roadmap
 
