@@ -1205,6 +1205,36 @@ next episode (most recently watched of the two) with working
 backdrop, badge, and "See all" link. Typecheck, lint, and build all
 clean.
 
+### Settings: full watch-history resync (disaster recovery)
+
+Requested for recovering from lost/corrupted watch history in Reeler
+(a bad migration, an accidental delete, etc.): a way to re-pull
+everything from Plex, not just recent activity, on demand — explicitly
+_not_ wired to any timer or startup hook, since that's a very different
+risk profile from the existing automatic paths (the hourly library
+sync and the 15-minute incremental history backstop).
+
+Turned out `backfillWatchHistory`/`backfillAllUsers` already supported
+this — passing no `since` means no time filter reaches Plex's
+`/status/sessions/history/all` call, so it pages through the _entire_
+history log. The existing "Sync now" button already calls
+`backfillWatchHistory` unbounded, but only for whichever account
+clicks it; this is a household-wide gap the button doesn't cover for
+multi-user setups. Added a `fullHistorySync` action calling
+`backfillAllUsers()` (no `since`) — every linked user, not just the
+admin who clicks it — as a distinct, clearly-separated control in the
+Library Sync card, with copy that says plainly what it does, that it's
+safe to re-run (the existing (user, item, watchedAt) dedupe means it
+only ever fills gaps), and that it can be slow on a large history.
+Deliberately a plain (non-accent) button, not `.primary`, so it doesn't
+compete visually with "Sync now" as the default action.
+
+Verified against a seeded DB (admin with no linked `plexAccountId`):
+the button round-trips through the real action and reports "0 users
+scanned" rather than erroring, confirming `backfillAllUsers()` handles
+the empty-linked-users case cleanly; the existing "Sync now" button and
+its own result state are unaffected. Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

@@ -18,6 +18,7 @@
 	let accentPending = $state<AccentColor | null>(null);
 	let timeTogglePending = $state(false);
 	let syncing = $state(false);
+	let fullHistorySyncing = $state(false);
 
 	const webhookUrl = $derived(
 		data.settings.plexWebhookToken
@@ -232,6 +233,45 @@
 	{:else if form?.card === 'sync' && form.message}
 		<p class="error">{form.message}</p>
 	{/if}
+
+	<div class="subsection">
+		<strong>Full history resync</strong>
+		<p class="hint">
+			Re-pulls every linked user's entire watch history from Plex, not just recent activity — for
+			recovering from lost or corrupted history in Reeler. Doesn't run on a schedule or on restart,
+			and is safe to run more than once (it only fills gaps, never duplicates). Can take a while on
+			a large history.
+		</p>
+
+		<form
+			method="POST"
+			action="?/fullHistorySync"
+			use:enhance={() => {
+				fullHistorySyncing = true;
+				return async ({ update }) => {
+					await update();
+					fullHistorySyncing = false;
+				};
+			}}
+		>
+			<button type="submit" disabled={fullHistorySyncing}
+				>{fullHistorySyncing ? 'Resyncing…' : 'Resync all watch history from Plex'}</button
+			>
+		</form>
+
+		{#if form?.card === 'fullHistorySync' && form.success}
+			<p class="success">
+				Scanned {form.entriesSeen} history entries across {form.usersScanned} user{form.usersScanned ===
+				1
+					? ''
+					: 's'}, added {form.entriesInserted} new watch history entr{form.entriesInserted === 1
+					? 'y'
+					: 'ies'}.
+			</p>
+		{:else if form?.card === 'fullHistorySync' && form.message}
+			<p class="error">{form.message}</p>
+		{/if}
+	</div>
 </div>
 
 <h2 class="section-headline">Metadata Sources</h2>
@@ -338,6 +378,18 @@
 		margin: 0;
 		font-size: 1.75rem;
 		font-weight: 600;
+	}
+	.subsection {
+		margin-top: 1.25rem;
+		padding-top: 1.25rem;
+		border-top: 1px solid var(--border);
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		align-items: flex-start;
+	}
+	.subsection strong {
+		font-size: 0.95rem;
 	}
 	.field {
 		display: flex;
