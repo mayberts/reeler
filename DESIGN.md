@@ -1124,6 +1124,19 @@ each `<img>` resolved through the real proxy route, and the heading
 stayed legible against both a light and dark test image in both light
 and dark color schemes. Typecheck clean.
 
+### Dashboard hero: too short to see the backdrop
+
+Reported directly after the rotating-backdrop hero shipped: it was too
+short (fixed `padding-top`) to actually make out the image before the
+scrim faded it out. Switched to a `min-height: clamp(16rem, 34vw,
+28rem)` flex container (heading pinned to the bottom via
+`align-items: flex-end` instead of top padding), and pushed the
+scrim's low-opacity stop from 35% to 45% so more of the taller image
+stays clear before the fade toward the heading starts. Verified
+visually at 1200px in both light and dark color schemes — the hero is
+now ~400px tall (was ~200px) with the backdrop clearly visible above
+the heading. Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
