@@ -1693,6 +1693,44 @@ shape that broke the previous version) still resulted in the track's
 that field at all — it now reads the parent album's own already-stored
 cover instead. Typecheck, lint, and build clean.
 
+### Still no track covers — the DB lookup was right, but never ran
+
+After redeploying the DB-lookup fix and re-running "Pull history from
+Plex" again, tracks — including ones played the same day, not just
+old backfilled ones — still had no cover. The DB lookup for a track's
+parent album was correct, but it only ever runs inside
+`enrichSparseItem`'s "this item needs enriching" branch, and that
+branch was triggered by whether the item already had a `thumb` — the
+exact field this whole investigation had already found unreliable on
+tracks. If a track's _sparse history entry_ itself already carries
+some `thumb` value (even a broken or stale one), enrichment was
+skipped entirely, `parentRatingKey` was never resolved, and the DB
+lookup never ran at all — not "found nothing," never executed.
+
+Two changes: (1) `enrichSparseItem`'s trigger for a track is now
+whether `parentRatingKey` is present — the field enrichment actually
+exists to obtain — rather than `thumb`; albums/episodes keep the
+`thumb`-based check, since that's held up for them. (2) For a track,
+the parent album's cover is now used unconditionally ahead of the
+track's own `thumb` (previously only used when the track's own field
+was empty), and both are passed through a `nonEmpty()` helper first,
+since Plex can send `""` rather than omitting a field, which plain
+`??` treats as "present." Also added a permanent `console.warn`
+breadcrumb logging the actual field values whenever a track still ends
+up with no cover after all of this, since guessing Plex's exact
+payload shape blind has now taken three attempts — if this still
+doesn't hold, the fix after this one should come from real log output
+instead of another guess.
+
+Verified against the specific case that slipped through: a track
+whose sparse history entry carries a truthy `thumb` pointing at a
+path that 404s, with no `parentRatingKey` — under the old thumb-based
+trigger this would skip enrichment forever and never link to its
+album; under the new trigger it still enriches (since
+`parentRatingKey` is what's actually missing), resolves the album
+link, and the track ends up with the album's real cover. Typecheck,
+lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

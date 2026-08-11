@@ -19,6 +19,12 @@ const PARENT_TYPE: Partial<Record<MediaType, MediaType>> = {
 	season: 'show'
 };
 
+/** Treats an empty string the same as absent — Plex sometimes sends `""` for a field
+ *  it has nothing for, rather than omitting it, which `??` alone wouldn't catch. */
+function nonEmpty(value: string | null | undefined): string | null {
+	return value ? value : null;
+}
+
 function extractExternalIds(item: PlexMetadataItem) {
 	const ids: { tmdbId?: string; tvdbId?: string; imdbId?: string } = {};
 	for (const guid of item.Guid ?? []) {
@@ -35,13 +41,21 @@ function extractExternalIds(item: PlexMetadataItem) {
  * a full library listing: a real track/episode entry looks like `{ title, ratingKey,
  * type, parentTitle, grandparentTitle, viewedAt, ... }` — `parentTitle` (the album/season
  * name) is there as plain text, but `parentRatingKey` (its own ratingKey) never is.
- * Without it there's no way to link the item to its parent, so a sparse item (no
- * `thumb`, used as the signal it wasn't a full lookup) gets enriched from the canonical
- * `/library/metadata/{ratingKey}` before proceeding.
+ * Without it there's no way to link the item to its parent, so a sparse item gets
+ * enriched from the canonical `/library/metadata/{ratingKey}` before proceeding.
+ *
+ * For albums/episodes, "already have `thumb`" is used as the signal a payload is
+ * already full (cheap, and has held up in practice). Tracks use `parentRatingKey`
+ * itself as that signal instead — a track's own `thumb` has turned out to sometimes be
+ * present but not trustworthy (see DESIGN.md), so it can't be used to decide whether
+ * enrichment (and therefore `parentRatingKey`, the field actually needed here) is
+ * still missing.
  */
 async function enrichSparseItem(item: PlexMetadataItem): Promise<PlexMetadataItem> {
 	if (item.type !== 'track' && item.type !== 'album' && item.type !== 'episode') return item;
-	if (item.thumb || !item.ratingKey) return item;
+	if (!item.ratingKey) return item;
+	const alreadyFull = item.type === 'track' ? Boolean(item.parentRatingKey) : Boolean(item.thumb);
+	if (alreadyFull) return item;
 
 	try {
 		const { MediaContainer } = await getMetadata(item.ratingKey);
@@ -139,12 +153,18 @@ export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promis
 		imdbId: imdbId ?? existing?.imdbId ?? null,
 		plexRatingKey: item.ratingKey,
 		parentId: parentId ?? existing?.parentId ?? null,
-		// Tracks almost never carry their own `thumb` in Plex — a track has no artwork
-		// distinct from its album's cover — so fall back to the parent album's own cover
-		// (looked up from our DB above) before giving up and falling back to whatever's
-		// already stored.
+		// A track's own `thumb` — on the rare occasion Plex sends one at all — has turned
+		// out unreliable in practice (see DESIGN.md), so for a track the parent album's
+		// own cover (looked up from our DB above) is used unconditionally ahead of it,
+		// not just when the track's own field is missing. `nonEmpty` matters here: Plex
+		// sometimes sends `""` rather than omitting a field, which plain `??` would still
+		// treat as "present" and use.
 		plexThumb:
-			item.thumb ?? (type === 'track' ? parentPlexThumb : undefined) ?? existing?.plexThumb ?? null,
+			(type === 'track'
+				? (nonEmpty(parentPlexThumb) ?? nonEmpty(item.thumb))
+				: nonEmpty(item.thumb)) ??
+			existing?.plexThumb ??
+			null,
 		plexArt: item.art ?? existing?.plexArt ?? null,
 		tagline: item.tagline ?? existing?.tagline ?? null,
 		summary: item.summary ?? existing?.summary ?? null,
@@ -167,6 +187,21 @@ export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promis
 		episodeNumber: (type === 'episode' ? item.index : undefined) ?? existing?.episodeNumber ?? null,
 		episodeCount: (type === 'season' ? item.leafCount : undefined) ?? existing?.episodeCount ?? null
 	};
+
+	// Breadcrumb for diagnosing a track that still ends up with no cover after all the
+	// above — cheap enough to leave in permanently, and the only way to see what Plex
+	// actually sent for a specific track without reproducing it locally.
+	if (type === 'track' && !values.plexThumb) {
+		console.warn('[sync] track has no cover after upsert', {
+			ratingKey: item.ratingKey,
+			title: item.title,
+			ownThumb: item.thumb ?? null,
+			parentRatingKey: item.parentRatingKey ?? null,
+			parentTitle: item.parentTitle ?? null,
+			parentId,
+			parentPlexThumb
+		});
+	}
 
 	if (existing) {
 		await db.update(mediaItems).set(values).where(eq(mediaItems.id, existing.id));
