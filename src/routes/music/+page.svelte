@@ -11,6 +11,7 @@
 	search={data.search}
 	sort={data.sort}
 	emptyText="No albums yet — albums are added automatically the first time you play a track."
+	searchPlaceholder="Filter by album or artist"
 	square
 	showWatched={false}
 	sortOptions={[
