@@ -1307,6 +1307,61 @@ authentication, and clicking the Green swatch in Settings updated the
 for that query — confirming the full reactive chain end to end.
 Typecheck, lint, and build clean.
 
+### Cast, crew, and person pages
+
+Requested against reference screenshots of TMDb's own cast grid and
+person page. Real bios, personal info, and "Known For" filmography
+only exist in TMDb's data — Plex's own metadata has none of that — so
+this is TMDb-only by design: a title with no `tmdbId` (a TVDB-only
+show, an unmatched item) just shows no cast section, same spirit as
+the existing TVDB fallback being TMDb's own gap-filler rather than a
+universal requirement.
+
+New `people`/`credits` tables (`schema.ts`). `people` rows are keyed
+on TMDb person id and shared across every credit that person has in
+the library — created "thin" (id/name/photo only) the first time they
+turn up in some title's cast/crew, then "filled in" (biography,
+birthday, place of birth, ...) lazily, the first time someone actually
+opens their own `/people/[id]` page. A `detailsFetchedAt` sentinel
+distinguishes "never looked up" from "looked up, TMDb had nothing" —
+without it, a person with no bio on file would re-trigger a TMDb call
+on every single page view.
+
+Cast/crew itself is fetched and cached the first time a movie/show's
+own detail page is opened (`getOrFetchCredits`, `media/credits.ts`) —
+deliberately not during library sync or on any schedule, so a full
+sync stays fast regardless of library size; every title's cast/crew
+costs nothing until someone actually looks. New TMDb client methods:
+`getTmdbCredits` (cast capped at 20 by TMDb's own billing order; crew
+filtered to a fixed allowlist of key jobs — director, writer,
+producer, ... — since a modern production's full crew list commonly
+runs into the hundreds of names across every department Reeler has no
+reason to show), `getTmdbPerson` (bio/personal info), and
+`getTmdbPersonKnownFor` (a person's most notable other credits).
+
+"Known For" is deliberately _not_ persisted like credits are — it's
+pulled live from TMDb on every person-page view instead. Two reasons:
+it's a pure browsing aid that drifts as a career progresses (unlike a
+movie's own cast, which doesn't change), and the titles in it usually
+aren't in Reeler's library at all — persisting them as tracked rows
+would mean modeling "just browsing" data Reeler has no other reason to
+know about. A "Known For" title that _does_ happen to already be in
+the library (same `tmdbId`) links to its own local `/media/[id]` page;
+otherwise it links out to TMDb's own page for it, same pattern as the
+existing external-ID links on the detail page.
+
+Verified against a seeded DB with a mocked TMDb (temporary fetch-patch,
+reverted before commit): a movie's page showed the mocked cast (with
+characters) and crew (correctly filtered — a "Gaffer" crew entry was
+excluded, only "Director" survived the job allowlist); clicking a cast
+member correctly navigated to their `/people/[id]` page showing name,
+biography, and personal info fetched and cached on that first visit;
+the Known For grid showed one title linking internally (its `tmdbId`
+matched a title already in the seeded library) and one linking out to
+TMDb (no local match); reloading the movie page served the same cast
+from the cache with no further TMDb call. Typecheck, lint, and build
+all clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

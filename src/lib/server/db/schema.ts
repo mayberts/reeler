@@ -196,6 +196,72 @@ export const listItems = sqliteTable(
 	(table) => [index('list_items_list_id_idx').on(table.listId)]
 );
 
+/**
+ * A cast/crew member, keyed on their TMDb person id. Shared across every credit they
+ * have in the library — a person row is created (with just id/name/profile) the first
+ * time they show up in some title's credits, and "filled in" (biography, birthday,
+ * etc.) lazily, the first time someone actually opens their own page. `detailsFetchedAt`
+ * (not just checking whether `biography` is set) distinguishes "never looked up" from
+ * "looked up, TMDb just doesn't have a bio for this person" — without it, an obscure
+ * crew member with no biography on file would trigger a fresh TMDb call on every visit.
+ */
+export const people = sqliteTable(
+	'people',
+	{
+		id: id(),
+		tmdbId: text('tmdb_id').notNull(),
+		name: text('name').notNull(),
+		/** Public TMDb CDN URL — safe to link to directly, same as media_items.artworkUrl. */
+		profileUrl: text('profile_url'),
+		biography: text('biography'),
+		/** ISO date string (`YYYY-MM-DD`). */
+		birthday: text('birthday'),
+		deathday: text('deathday'),
+		placeOfBirth: text('place_of_birth'),
+		knownForDepartment: text('known_for_department'),
+		detailsFetchedAt: integer('details_fetched_at', { mode: 'timestamp' }),
+		createdAt: createdAt()
+	},
+	(table) => [uniqueIndex('people_tmdb_id_idx').on(table.tmdbId)]
+);
+
+export type Person = typeof people.$inferSelect;
+
+export const creditRoleValues = ['cast', 'crew'] as const;
+export type CreditRole = (typeof creditRoleValues)[number];
+
+/**
+ * One (media item, person) credit. `character` is set for cast; `job`/`department` for
+ * crew — crew is filtered at fetch time to a handful of key roles (director, writer,
+ * producer, ...), not TMDb's full department list, so this stays a "who made this"
+ * summary rather than the entire crew roster. Only ever populated lazily, the first
+ * time a movie/show's own detail page is viewed (see `getOrFetchCredits`) — never a
+ * sync-time or scheduled fetch, to keep the regular library sync fast.
+ */
+export const credits = sqliteTable(
+	'credits',
+	{
+		id: id(),
+		mediaItemId: text('media_item_id')
+			.notNull()
+			.references(() => mediaItems.id),
+		personId: text('person_id')
+			.notNull()
+			.references(() => people.id),
+		role: text('role', { enum: creditRoleValues }).notNull(),
+		character: text('character'),
+		job: text('job'),
+		department: text('department'),
+		/** TMDb's own billing/cast order — lower is more prominent. 0 for crew. */
+		sortOrder: integer('sort_order').notNull().default(0),
+		createdAt: createdAt()
+	},
+	(table) => [
+		index('credits_media_item_id_idx').on(table.mediaItemId),
+		index('credits_person_id_idx').on(table.personId)
+	]
+);
+
 export const accentColorValues = [
 	'amber',
 	'blue',
@@ -250,7 +316,17 @@ export const mediaItemsRelations = relations(mediaItems, ({ one, many }) => ({
 		references: [mediaItems.id]
 	}),
 	watchHistory: many(watchHistory),
-	ratings: many(ratings)
+	ratings: many(ratings),
+	credits: many(credits)
+}));
+
+export const peopleRelations = relations(people, ({ many }) => ({
+	credits: many(credits)
+}));
+
+export const creditsRelations = relations(credits, ({ one }) => ({
+	mediaItem: one(mediaItems, { fields: [credits.mediaItemId], references: [mediaItems.id] }),
+	person: one(people, { fields: [credits.personId], references: [people.id] })
 }));
 
 export const watchHistoryRelations = relations(watchHistory, ({ one }) => ({

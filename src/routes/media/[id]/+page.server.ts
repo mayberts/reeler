@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { mediaItems, watchHistory, ratings } from '$lib/server/db/schema';
 import { setRating } from '$lib/server/ratings';
 import { addListItem, getVisibleLists } from '$lib/server/lists';
+import { getOrFetchCredits } from '$lib/server/media/credits';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -13,7 +14,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const item = await db.query.mediaItems.findFirst({ where: eq(mediaItems.id, params.id) });
 	if (!item) error(404, 'Not found');
 
-	const [[{ watchCount }], lastWatch, rating, visibleLists, parent, seasons, episodes] =
+	const [[{ watchCount }], lastWatch, rating, visibleLists, parent, seasons, episodes, credits] =
 		await Promise.all([
 			db
 				.select({ watchCount: count() })
@@ -41,7 +42,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 						where: and(eq(mediaItems.parentId, item.id), eq(mediaItems.type, 'episode')),
 						orderBy: asc(mediaItems.episodeNumber)
 					})
-				: Promise.resolve([])
+				: Promise.resolve([]),
+			getOrFetchCredits(item)
 		]);
 
 	// One bulk query for which of this season's episodes the user has already watched,
@@ -76,7 +78,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		lastWatchedAt: lastWatch?.watchedAt ?? null,
 		myRating: rating?.value ?? null,
 		// Only lists this user owns can be added to.
-		myLists: visibleLists.filter((list) => list.ownerId === userId)
+		myLists: visibleLists.filter((list) => list.ownerId === userId),
+		credits
 	};
 };
 
