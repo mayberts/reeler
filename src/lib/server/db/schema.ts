@@ -120,6 +120,8 @@ export const mediaItems = sqliteTable(
 	]
 );
 
+export type MediaItem = typeof mediaItems.$inferSelect;
+
 /** A single watch/listen event, sourced from Plex (webhook or backfill) or logged manually. */
 export const watchHistory = sqliteTable(
 	'watch_history',

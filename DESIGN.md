@@ -1165,6 +1165,46 @@ the non-admin sees neither a Settings nav link nor the admin wording,
 and still gets a 403 hitting `/settings` directly (pre-existing
 guard, unchanged). Typecheck, lint, and build all clean.
 
+### Dashboard: "Next Up" hero + row
+
+Requested after seeing Trakt's dashboard: a hero for the show you're
+actively partway through, not just a random library backdrop, plus a
+row of everything else in progress underneath.
+
+New `getNextUp(userId, limit)` (`src/lib/server/media/next-up.ts`):
+"in progress" means a show with `0 < watchedEpisodes < totalEpisodes`
+(reusing `getShowProgress`, same definition as the shows-grid progress
+bar), paired with the next unwatched episode in season/episode order
+and the most recent `watchedAt` among the show's watched episodes (for
+"watched most recently" ordering, matching Trakt's own Up Next). Same
+two-hop episode -> season -> show resolution `getShowProgress` already
+established; episodes carry their own `seasonNumber`/`episodeNumber`
+directly, so ordering them doesn't need a season lookup.
+
+The dashboard hero now shows the top Next Up pick (show title, episode
+title, an "S01E04"-style badge, a "See all" link to `/shows`) when
+there's anything in progress, falling back to the previous
+random-backdrop behavior otherwise — so a fresh/unsynced install, or
+one where everything's either untouched or fully watched, still gets a
+hero rather than nothing. The hero backdrop prefers the episode's own
+art and falls back to the show's; if neither has one, the hero
+degrades to a plain heading exactly like the random-pick path already
+did in that case. A new "Next Up" scroll-row (same `MediaCard`/
+`.scroll-row` pattern as "Recently added") lists every in-progress
+show below it, using each episode's own artwork (real Plex episodes
+almost always have one distinct from the show poster) — clicking a
+card or its watched button acts on that specific episode, same as any
+other episode row.
+
+Verified against a seeded DB with three shows — South Park (3/10
+watched), Battlestar Galactica (1/5), Family Guy (8/8, fully watched)
+— South Park and Battlestar Galactica both appeared in the Next Up
+row with correct "next unwatched" episodes and S/E badges, Family Guy
+correctly excluded (fully watched), and the hero showed South Park's
+next episode (most recently watched of the two) with working
+backdrop, badge, and "See all" link. Typecheck, lint, and build all
+clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
