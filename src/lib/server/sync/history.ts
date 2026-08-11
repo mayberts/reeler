@@ -1,7 +1,7 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { watchHistory } from '$lib/server/db/schema';
-import { getWatchHistory } from '$lib/server/plex/client';
+import { mediaItems, watchHistory } from '$lib/server/db/schema';
+import { getWatchHistory, getMetadata, scrobbleMedia } from '$lib/server/plex/client';
 import { upsertMediaItemFromPlex } from './media-item';
 
 export interface HistoryBackfillResult {
@@ -157,4 +157,65 @@ export async function backfillAllUsers(since?: Date) {
 		results.push({ userId: user.id, ...result });
 	}
 	return results;
+}
+
+export interface HistoryPushResult {
+	itemsScanned: number;
+	itemsPushed: number;
+	itemsSkipped: number;
+}
+
+/**
+ * The opposite direction from `backfillWatchHistory`/`backfillAllUsers`: pushes the
+ * Plex owner's own watch history from Reeler back to Plex, for recovering from a
+ * Plex-side history loss (a database reset, a re-added library, etc.) using Reeler as
+ * the source of truth instead.
+ *
+ * Only the owner account (see `PLEX_OWNER_ACCOUNT_ID`) can be restored this way —
+ * scrobbling always acts as whichever Plex account the single configured admin token
+ * belongs to, so there's no way to push a non-owner Home member's history back with
+ * the current one-token setup. Only items with a `plexRatingKey` are eligible
+ * (manually-logged items were never in Plex to begin with), and only ones Plex doesn't
+ * already show as watched — both to skip a wasted request and, more importantly, to
+ * never clobber a real Plex-side watched date with "now" (`scrobbleMedia` has no way
+ * to set a historical timestamp — see its docstring).
+ */
+export async function pushHistoryToPlex(): Promise<HistoryPushResult> {
+	const owner = await db.query.users.findFirst({
+		where: (fields, { eq }) => eq(fields.plexAccountId, PLEX_OWNER_ACCOUNT_ID)
+	});
+	if (!owner) return { itemsScanned: 0, itemsPushed: 0, itemsSkipped: 0 };
+
+	const watchedRows = await db
+		.selectDistinct({ mediaItemId: watchHistory.mediaItemId })
+		.from(watchHistory)
+		.where(eq(watchHistory.userId, owner.id));
+	const itemIds = watchedRows.map((row) => row.mediaItemId);
+	if (itemIds.length === 0) return { itemsScanned: 0, itemsPushed: 0, itemsSkipped: 0 };
+
+	const items = await db.query.mediaItems.findMany({
+		where: and(inArray(mediaItems.id, itemIds), isNotNull(mediaItems.plexRatingKey))
+	});
+
+	let itemsPushed = 0;
+	let itemsSkipped = 0;
+
+	for (const item of items) {
+		if (!item.plexRatingKey) continue;
+		try {
+			const { MediaContainer } = await getMetadata(item.plexRatingKey);
+			const current = MediaContainer.Metadata?.[0];
+			if (current?.viewCount && current.viewCount > 0) {
+				itemsSkipped++;
+				continue;
+			}
+			await scrobbleMedia(item.plexRatingKey);
+			itemsPushed++;
+		} catch (err) {
+			console.error('[sync] failed to push watch history to Plex', { id: item.id }, err);
+			itemsSkipped++;
+		}
+	}
+
+	return { itemsScanned: items.length, itemsPushed, itemsSkipped };
 }

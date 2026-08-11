@@ -19,6 +19,7 @@
 	let timeTogglePending = $state(false);
 	let syncing = $state(false);
 	let fullHistorySyncing = $state(false);
+	let pushingHistory = $state(false);
 
 	const webhookUrl = $derived(
 		data.settings.plexWebhookToken
@@ -235,12 +236,12 @@
 	{/if}
 
 	<div class="subsection">
-		<strong>Full history resync</strong>
+		<strong>Pull history from Plex</strong>
 		<p class="hint">
 			Re-pulls every linked user's entire watch history from Plex, not just recent activity — for
-			recovering from lost or corrupted history in Reeler. Doesn't run on a schedule or on restart,
-			and is safe to run more than once (it only fills gaps, never duplicates). Can take a while on
-			a large history.
+			recovering lost or corrupted history in <em>Reeler</em>, using Plex as the source of truth.
+			Doesn't run on a schedule or on restart, and is safe to run more than once (it only fills
+			gaps, never duplicates). Can take a while on a large history.
 		</p>
 
 		<form
@@ -255,7 +256,7 @@
 			}}
 		>
 			<button type="submit" disabled={fullHistorySyncing}
-				>{fullHistorySyncing ? 'Resyncing…' : 'Resync all watch history from Plex'}</button
+				>{fullHistorySyncing ? 'Pulling…' : 'Pull all watch history from Plex'}</button
 			>
 		</form>
 
@@ -269,6 +270,45 @@
 					: 'ies'}.
 			</p>
 		{:else if form?.card === 'fullHistorySync' && form.message}
+			<p class="error">{form.message}</p>
+		{/if}
+	</div>
+
+	<div class="subsection">
+		<strong>Push history to Plex</strong>
+		<p class="hint">
+			Restores watch history in <em>Plex</em> from Reeler, for recovering a Plex-side loss (a database
+			reset, a re-added library) using Reeler as the source of truth. Only marks items watched — Plex's
+			API has no way to set a historical date, so restored items will show as watched "just now" in Plex,
+			not on their original date. Only restores the Plex server owner's own history (Reeler has no way
+			to write history for other Plex Home members), and never touches an item Plex already shows as watched.
+			Not on a schedule or on restart, and safe to run more than once.
+		</p>
+
+		<form
+			method="POST"
+			action="?/pushHistory"
+			use:enhance={() => {
+				pushingHistory = true;
+				return async ({ update }) => {
+					await update();
+					pushingHistory = false;
+				};
+			}}
+		>
+			<button type="submit" disabled={pushingHistory}
+				>{pushingHistory ? 'Pushing…' : 'Push watch history to Plex'}</button
+			>
+		</form>
+
+		{#if form?.card === 'pushHistory' && form.success}
+			<p class="success">
+				Scanned {form.itemsScanned} watched item{form.itemsScanned === 1 ? '' : 's'}, marked {form.itemsPushed}
+				as watched in Plex{form.itemsSkipped > 0
+					? ` (${form.itemsSkipped} already watched there or skipped)`
+					: ''}.
+			</p>
+		{:else if form?.card === 'pushHistory' && form.message}
 			<p class="error">{form.message}</p>
 		{/if}
 	</div>
