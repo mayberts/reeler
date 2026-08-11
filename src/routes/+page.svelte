@@ -115,7 +115,10 @@
 		padding: 2rem 1.5rem;
 	}
 	.hero.has-backdrop {
-		padding: 6rem 1.5rem 2rem;
+		display: flex;
+		align-items: flex-end;
+		min-height: clamp(16rem, 34vw, 28rem);
+		padding: 1.5rem;
 	}
 	.backdrop {
 		position: absolute;
@@ -136,8 +139,8 @@
 		background: linear-gradient(
 			180deg,
 			var(--surface) 0%,
-			light-dark(rgba(255, 255, 255, 0.25), rgba(0, 0, 0, 0.35)) 35%,
-			light-dark(rgba(255, 255, 255, 0.8), rgba(0, 0, 0, 0.78)) 100%
+			light-dark(rgba(255, 255, 255, 0.15), rgba(0, 0, 0, 0.25)) 45%,
+			light-dark(rgba(255, 255, 255, 0.85), rgba(0, 0, 0, 0.82)) 100%
 		);
 		z-index: 1;
 	}
