@@ -1626,6 +1626,38 @@ different artists): searching the shared artist's name returned both
 of their albums; searching an album title returned just that album;
 a non-matching query returned zero results.
 
+### Fixed: tracks with no cover in Watch history
+
+Track entries in Watch history showed no artwork (a broken/blank
+image), while album entries right next to them showed a proper cover.
+Root cause: `upsertMediaItemFromPlex` only ever stored a media item's
+own `thumb` field as its `plexThumb` — and a Plex track almost never
+has one, since a track has no artwork distinct from its album's cover.
+Albums looked fine because their own sparse history entries get
+enriched (via `enrichSparseItem`'s fallback fetch to
+`/library/metadata/{ratingKey}`) into their own real `thumb`; tracks
+went through the same enrichment but their _own_ metadata still has no
+`thumb` to enrich into.
+
+Fixed by capturing Plex's `parentThumb` field (the containing album's
+poster path, present on the same track payloads that carry
+`parentRatingKey`/`parentTitle`) and falling back to it for
+`type === 'track'` items with no `thumb` of their own. No `parentId`
+join needed at read time — the resolved path is just stored directly
+on the track's own `plexThumb`, so the existing poster route
+(`/api/media/[id]/poster`) needs no changes.
+
+No backfill script needed: `upsertMediaItemFromPlex` runs again for
+every history entry on "Pull history from Plex" (Settings → Library
+Sync), so re-running it fills in `plexThumb` for every already-synced
+track the same way a fresh sync would.
+
+Verified with a mocked Plex server: a track history entry with no
+`thumb` but a `parentThumb`, enriched via a mocked per-item metadata
+fetch, ended up with `plex_thumb` set to the parent album's cover path
+— confirmed directly against the seeded database. Typecheck, lint,
+and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
