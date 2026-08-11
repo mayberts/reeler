@@ -1393,6 +1393,50 @@ question is a redeploy/restart the user needs to do on their end
 just stops a stale schema from being able to break the page while
 that happens. Typecheck, lint, and build clean.
 
+### Fixed the real cause: movies/shows never got external ids at all
+
+The previous fix stopped the page from 500ing, but the user reported
+cast/crew was still completely absent everywhere — no cast section on
+any title, and (looking at a screenshot) no TMDb/IMDb/TVDB badge
+either, on a title with plenty of other Plex metadata. That second
+detail was the real clue: external ids were never getting synced for
+movies/shows at all, cast/crew or not — a pre-existing gap the
+cast/crew feature was just the first thing to make visible, since a
+missing external-link badge is easy to not notice but a whole missing
+section isn't.
+
+Root cause: Plex's bulk `/library/sections/{id}/all` listing (what
+`syncLibrary` uses for every movie/show/season) omits the `Guid` array
+— the one `tmdbId`/`imdbId`/`tvdbId` extraction
+(`extractExternalIds` in `media-item.ts`) actually reads — unless the
+request explicitly passes `includeGuids=1`. Without it, Plex only
+returns the single legacy `guid` field, which isn't in the parseable
+`tmdb://...` form. `syncLibrary` never passed that parameter, so every
+movie/show/season synced through the normal bulk path got no external
+ids, full stop — not a regression from the cast/crew PR, just never
+working. (Track/album/episode items created lazily from watch history
+or a webhook were unaffected: `enrichSparseItem` fetches those
+individually via `/library/metadata/{ratingKey}`, which includes
+`Guid` by default with no extra parameter.)
+
+Fixed by adding `includeGuids=1` to every `listSectionItems` call in
+`syncLibrary`. No backfill script needed — `upsertMediaItemFromPlex`
+already upserts by `plexRatingKey` and only overwrites `tmdbId` when a
+new value is actually found (`tmdbId ?? existing?.tmdbId ?? null`), so
+simply re-running the existing "Sync now" button re-populates every
+already-synced title's external ids, same "resync fills it in" pattern
+already used for the artist field.
+
+Verified against a seeded DB with a movie that had a `plexRatingKey`
+but no `tmdbId` (simulating a title synced before this fix) and a
+mocked Plex that — matching Plex's real behavior exactly — only
+includes the `Guid` array in its response when `includeGuids=1` is
+actually present in the request: before triggering a sync, confirmed
+`tmdb_id`/`imdb_id` were `null` in the DB; clicked the real "Sync now"
+button in Settings; confirmed both were now correctly populated
+(`999`/`tt999` from the mock) afterward. Typecheck, lint, and build
+clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

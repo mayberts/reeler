@@ -52,9 +52,20 @@ export async function syncLibrary(): Promise<LibrarySyncResult> {
 	);
 
 	// Fetch phase.
+	//
+	// `includeGuids=1` matters a lot here: without it, Plex's bulk `/all` listing omits
+	// the `Guid` array entirely (only the single legacy `guid` field comes back, which
+	// isn't in the parseable `tmdb://...`/`imdb://...`/`tvdb://...` form `Guid` is), so
+	// every movie/show/season synced this way silently got no external ids at all —
+	// no TMDb/IMDb/TVDB link, and (once cast/crew shipped) no cast/crew either, since
+	// that's keyed on `tmdbId`. Track/album/episode items created *lazily* (from watch
+	// history or a webhook, not this bulk sync) were never affected — they go through
+	// `enrichSparseItem`'s per-item `/library/metadata/{ratingKey}` fetch instead, which
+	// includes `Guid` by default with no extra parameter needed.
 	const allItems: PlexMetadataItem[] = [];
 	for (const section of sections) {
-		const params: Record<string, string> = section.type === 'artist' ? { type: '9' } : {};
+		const params: Record<string, string> =
+			section.type === 'artist' ? { type: '9', includeGuids: '1' } : { includeGuids: '1' };
 		const { MediaContainer: top } = await listSectionItems(section.key, params);
 		allItems.push(...(top.Metadata ?? []));
 
@@ -63,9 +74,15 @@ export async function syncLibrary(): Promise<LibrarySyncResult> {
 		// explicit type filter, same as albums. Seasons before episodes means an episode's
 		// `parentRatingKey` always resolves to an already-upserted season, not a stub.
 		if (section.type === 'show') {
-			const { MediaContainer: seasons } = await listSectionItems(section.key, { type: '3' });
+			const { MediaContainer: seasons } = await listSectionItems(section.key, {
+				type: '3',
+				includeGuids: '1'
+			});
 			allItems.push(...(seasons.Metadata ?? []));
-			const { MediaContainer: episodes } = await listSectionItems(section.key, { type: '4' });
+			const { MediaContainer: episodes } = await listSectionItems(section.key, {
+				type: '4',
+				includeGuids: '1'
+			});
 			allItems.push(...(episodes.Metadata ?? []));
 		}
 	}
