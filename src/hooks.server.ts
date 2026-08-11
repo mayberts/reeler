@@ -2,7 +2,9 @@ import { redirect, type Handle } from '@sveltejs/kit';
 import { getSessionUser, SESSION_COOKIE_NAME } from '$lib/server/auth/session';
 import { startBackgroundSync } from '$lib/server/sync/scheduler';
 
-const PUBLIC_PATH_PREFIXES = ['/login', '/api/webhooks/', '/api/auth/'];
+// The browser requests the favicon before/regardless of auth (e.g. for the login page
+// itself), and it carries no user-specific data — just the current accent color.
+const PUBLIC_PATH_PREFIXES = ['/login', '/api/webhooks/', '/api/auth/', '/favicon.svg'];
 
 // Runs once when this module is first loaded, i.e. once per server process.
 startBackgroundSync();

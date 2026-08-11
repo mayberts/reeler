@@ -1,5 +1,4 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { ACCENT_COLORS } from '$lib/accent-colors';
@@ -27,7 +26,7 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" href="/favicon.svg?accent={data.accentColor}" type="image/svg+xml" />
 </svelte:head>
 
 <div class="app" style="--accent: {accent.hex}; --accent-ink: {accent.ink};">

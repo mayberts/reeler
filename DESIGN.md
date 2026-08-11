@@ -1276,6 +1276,37 @@ no-overwrite guard), one manually-logged with no `plexRatingKey`
 "Scanned 2 watched items, marked 1 as watched in Plex (1 already
 watched there or skipped)." Typecheck, lint, and build clean.
 
+### Favicon now recolors with the accent color
+
+The static `favicon.svg` asset hardcoded amber, so changing the accent
+in Settings recolored the nav brand mark (already accent-aware, inline
+SVG in `+layout.svelte`) but left the browser tab icon stuck on amber
+— a `<link rel="icon">` loads its target as an opaque image resource,
+with no access to the page's CSS variables, so a static asset can
+never reflect a runtime setting.
+
+Replaced it with a server route, `src/routes/favicon.svg/+server.ts`,
+that renders the identical "Play & Wave" mark with the current
+`accentColor`'s hex/ink from `ACCENT_COLORS` baked directly into the
+SVG. The `<link>` tag's href is now `/favicon.svg?accent={accentColor}`
+— keying the URL on the color, not just requesting the same URL every
+time, matters because browsers cache favicons aggressively; changing
+Settings already calls `invalidateAll()`, which updates `accentColor`
+and therefore the href, and the changed query string forces an actual
+refetch instead of the browser reusing whatever it cached for the old
+color. Added `/favicon.svg` to `hooks.server.ts`'s public-path list —
+the browser requests it regardless of auth state (e.g. for the login
+page itself), and it carries no user-specific data, only the global
+accent color. Removed the now-fully-superseded static asset.
+
+Verified against a seeded DB: `/favicon.svg` served purple
+(`#7c3aed`) matching the seeded `accentColor`, worked without
+authentication, and clicking the Green swatch in Settings updated the
+`<link>` href from `.../favicon.svg?accent=purple` to
+`/favicon.svg?accent=green` with the route then serving green's hex
+for that query — confirming the full reactive chain end to end.
+Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
