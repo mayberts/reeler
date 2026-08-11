@@ -1235,6 +1235,47 @@ scanned" rather than erroring, confirming `backfillAllUsers()` handles
 the empty-linked-users case cleanly; the existing "Sync now" button and
 its own result state are unaffected. Typecheck, lint, and build clean.
 
+### Settings: push watch history back to Plex (the other disaster)
+
+The previous entry above solved the wrong direction — "full history
+resync" pulls Plex's history into Reeler, which helps if _Reeler_
+loses its data but does nothing if _Plex_ is the one that loses its
+history (a database reset, a re-added library). What was actually
+wanted: push Reeler's watch history back out to Plex.
+
+Plex's classic API has no bulk "write history" endpoint and no way to
+set a historical timestamp on a watch — `/:/scrobble?key=...` (new
+`scrobbleMedia` in `plex/client.ts`, same shape as the existing
+`rateMedia`) only marks an item watched _now_. So this can restore
+_that_ something was watched, never _when_ — documented plainly in
+both the function's docstring and the Settings copy, since it's a real
+gap between what "recover my history" sounds like and what's actually
+possible. To avoid quietly overwriting a Plex item that already has an
+accurate watched date, `pushHistoryToPlex` (`sync/history.ts`) checks
+each candidate's current Plex `viewCount` via `getMetadata` first and
+only scrobbles items Plex still shows as unwatched — it only ever
+fills gaps, same dedupe philosophy as the pull direction.
+
+Also owner-account-only, unlike the pull direction: scrobbling always
+acts as whichever Plex account the single configured admin token
+belongs to (Plex Home id `1`, see `PLEX_OWNER_ACCOUNT_ID`), and the
+classic API has no way to scrobble on behalf of a different Home
+member. Manually-logged items (no `plexRatingKey`) are excluded too —
+they were never in Plex to begin with. New `pushHistory` action, added
+as a second subsection alongside the renamed "Pull history from Plex"
+one (was "Full history resync" — renamed so the two are unambiguous
+about direction now that both exist side by side).
+
+Verified against a seeded DB with a mocked Plex (`getMetadata`/
+`scrobbleMedia` intercepted via the usual `hooks.server.ts` fetch-patch
+technique, reverted before commit) and three watched movies for the
+owner: one Plex reports unwatched (correctly scrobbled), one Plex
+already reports watched (correctly skipped, confirming the
+no-overwrite guard), one manually-logged with no `plexRatingKey`
+(correctly excluded from the scan entirely). Result message matched:
+"Scanned 2 watched items, marked 1 as watched in Plex (1 already
+watched there or skipped)." Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

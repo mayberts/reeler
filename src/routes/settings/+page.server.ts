@@ -12,7 +12,11 @@ import { verifyPlexConnection } from '$lib/server/plex/client';
 import { verifyTmdbToken } from '$lib/server/tmdb/client';
 import { verifyTvdbKey } from '$lib/server/tvdb/client';
 import { syncLibrary } from '$lib/server/sync/library';
-import { backfillWatchHistory, backfillAllUsers } from '$lib/server/sync/history';
+import {
+	backfillWatchHistory,
+	backfillAllUsers,
+	pushHistoryToPlex
+} from '$lib/server/sync/history';
 import { repairOrphanedTrackParents } from '$lib/server/sync/media-item';
 import type { Actions, PageServerLoad } from './$types';
 import type { RequestEvent } from '@sveltejs/kit';
@@ -175,6 +179,26 @@ export const actions: Actions = {
 			return fail(502, {
 				card: 'fullHistorySync' as const,
 				message: err instanceof Error ? err.message : 'Full history resync failed'
+			});
+		}
+	},
+
+	/**
+	 * The opposite direction: recovering from Plex itself losing watch history (as
+	 * opposed to `fullHistorySync` above, which recovers Reeler's own history from
+	 * Plex). Owner-account-only and never overwrites a real Plex watched date — see
+	 * `pushHistoryToPlex`'s docstring for why. Also not on any timer — manual only.
+	 */
+	pushHistory: async (event) => {
+		requireAdmin(event);
+
+		try {
+			const result = await pushHistoryToPlex();
+			return { card: 'pushHistory' as const, success: true, ...result };
+		} catch (err) {
+			return fail(502, {
+				card: 'pushHistory' as const,
+				message: err instanceof Error ? err.message : 'Push to Plex failed'
 			});
 		}
 	}

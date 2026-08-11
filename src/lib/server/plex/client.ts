@@ -113,6 +113,30 @@ export async function rateMedia(ratingKey: string, rating: number): Promise<void
 	}
 }
 
+/**
+ * Marks a media item watched in Plex — used to push Reeler's own watch history back
+ * to Plex (recovering from a Plex-side history loss). Plex's `/:/scrobble` has no
+ * parameter for a historical timestamp: it always sets `lastViewedAt` to the moment
+ * of the call, so this can restore *that an item was watched* but never *when* — see
+ * `pushHistoryToPlex` in `sync/history.ts` for how that's worked around (only called
+ * for items Plex doesn't already show as watched, so it never overwrites a real date).
+ * Always acts as whichever Plex account the configured admin token belongs to — the
+ * classic API has no way to scrobble on behalf of a different Plex Home user.
+ */
+export async function scrobbleMedia(ratingKey: string): Promise<void> {
+	const { serverUrl, token } = await getPlexConfig();
+	if (!serverUrl || !token) throw new Error('Plex server is not configured');
+	const url = new URL('/:/scrobble', serverUrl);
+	url.searchParams.set('key', ratingKey);
+	url.searchParams.set('identifier', 'com.plexapp.plugins.library');
+	url.searchParams.set('X-Plex-Token', token);
+
+	const response = await fetch(url);
+	if (!response.ok) {
+		throw new Error(`Plex scrobble request failed: ${response.status} ${response.statusText}`);
+	}
+}
+
 // Minimal shape of the fields Reeler actually reads; Plex's real payloads are much larger.
 export interface PlexLibrarySectionsResponse {
 	MediaContainer: {
