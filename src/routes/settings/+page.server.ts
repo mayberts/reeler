@@ -12,7 +12,7 @@ import { verifyPlexConnection } from '$lib/server/plex/client';
 import { verifyTmdbToken } from '$lib/server/tmdb/client';
 import { verifyTvdbKey } from '$lib/server/tvdb/client';
 import { syncLibrary } from '$lib/server/sync/library';
-import { backfillWatchHistory } from '$lib/server/sync/history';
+import { backfillWatchHistory, backfillAllUsers } from '$lib/server/sync/history';
 import { repairOrphanedTrackParents } from '$lib/server/sync/media-item';
 import type { Actions, PageServerLoad } from './$types';
 import type { RequestEvent } from '@sveltejs/kit';
@@ -142,6 +142,39 @@ export const actions: Actions = {
 			return fail(502, {
 				card: 'sync' as const,
 				message: err instanceof Error ? err.message : 'Sync failed'
+			});
+		}
+	},
+
+	/**
+	 * A full, unbounded re-pull of every linked user's watch history straight from
+	 * Plex's `/status/sessions/history/all` log — recovery for "I lost my history in
+	 * Reeler" (a bad migration, an accidental `DELETE`, etc.), not something that runs
+	 * on any timer. `backfillWatchHistory` dedupes on (user, item, watchedAt), so
+	 * running this repeatedly is always safe — it only ever fills gaps, never
+	 * duplicates. Deliberately separate from the regular `sync` action above, which
+	 * only backfills the account that clicked it and is meant to run often; this one
+	 * is for every linked household member and meant to run rarely.
+	 */
+	fullHistorySync: async (event) => {
+		requireAdmin(event);
+
+		try {
+			const results = await backfillAllUsers();
+			const entriesSeen = results.reduce((sum, r) => sum + r.entriesSeen, 0);
+			const entriesInserted = results.reduce((sum, r) => sum + r.entriesInserted, 0);
+
+			return {
+				card: 'fullHistorySync' as const,
+				success: true,
+				usersScanned: results.length,
+				entriesSeen,
+				entriesInserted
+			};
+		} catch (err) {
+			return fail(502, {
+				card: 'fullHistorySync' as const,
+				message: err instanceof Error ? err.message : 'Full history resync failed'
 			});
 		}
 	}
