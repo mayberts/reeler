@@ -4,9 +4,17 @@
 
 	let { data, form } = $props();
 	let syncing = $state(false);
+
+	const backdropSrc = $derived(data.heroItem ? `/api/media/${data.heroItem.id}/backdrop` : null);
 </script>
 
-<h1>Dashboard</h1>
+<div class="hero" class:has-backdrop={!!backdropSrc}>
+	{#if backdropSrc}
+		<img class="backdrop" src={backdropSrc} alt="" />
+		<div class="scrim"></div>
+	{/if}
+	<h1>Dashboard</h1>
+</div>
 
 <dl class="stats">
 	<div>
@@ -101,6 +109,46 @@
 {/if}
 
 <style>
+	.hero {
+		position: relative;
+		margin: 0 -1.5rem 2rem;
+		padding: 2rem 1.5rem;
+	}
+	.hero.has-backdrop {
+		padding: 6rem 1.5rem 2rem;
+	}
+	.backdrop {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		z-index: 0;
+	}
+	.scrim {
+		position: absolute;
+		inset: 0;
+		/* Fades from the page background at the very top down to a solid-ish plateau
+		   at the bottom, where the heading sits — same `light-dark()`-per-stop approach
+		   as the media detail page's hero scrim (see that file for why: this app themes
+		   off `prefers-color-scheme` alone, no `[data-theme]` attribute to key a
+		   media-query override off). */
+		background: linear-gradient(
+			180deg,
+			var(--surface) 0%,
+			light-dark(rgba(255, 255, 255, 0.25), rgba(0, 0, 0, 0.35)) 35%,
+			light-dark(rgba(255, 255, 255, 0.8), rgba(0, 0, 0, 0.78)) 100%
+		);
+		z-index: 1;
+	}
+	.hero h1 {
+		position: relative;
+		z-index: 2;
+		margin: 0;
+	}
+	.hero.has-backdrop h1 {
+		text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+	}
 	.stats {
 		display: flex;
 		gap: 2.5rem;

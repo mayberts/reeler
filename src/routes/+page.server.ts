@@ -1,4 +1,4 @@
-import { count, desc, eq } from 'drizzle-orm';
+import { count, desc, eq, isNotNull, or, sql } from 'drizzle-orm';
 import { error, fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { users, mediaItems, watchHistory } from '$lib/server/db/schema';
@@ -19,7 +19,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		recentHistory,
 		myLists,
 		recentMovies,
-		recentShows
+		recentShows,
+		[heroItem]
 	] = await Promise.all([
 		db.select({ value: count() }).from(users),
 		db.select({ value: count() }).from(mediaItems),
@@ -40,7 +41,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 			where: eq(mediaItems.type, 'show'),
 			orderBy: desc(mediaItems.createdAt),
 			limit: 15
-		})
+		}),
+		// A random backdrop from the library for the dashboard hero — re-picked on
+		// every load (this `load` reruns per navigation), not cached client-side.
+		db
+			.select({ id: mediaItems.id, title: mediaItems.title })
+			.from(mediaItems)
+			.where(or(isNotNull(mediaItems.plexArt), isNotNull(mediaItems.backdropUrl)))
+			.orderBy(sql`RANDOM()`)
+			.limit(1)
 	]);
 
 	return {
@@ -50,7 +59,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		recentHistory,
 		myLists,
 		recentMovies,
-		recentShows
+		recentShows,
+		heroItem: heroItem ?? null
 	};
 };
 
