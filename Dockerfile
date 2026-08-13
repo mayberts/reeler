@@ -28,4 +28,10 @@ RUN chmod +x ./entrypoint.sh
 
 EXPOSE 3000
 ENV PORT=3000
+# --start-period covers entrypoint.sh's drizzle-kit push (runs before `node build`
+# starts listening) so a normal startup isn't counted as a failed check. /api/health is
+# unauthenticated (see PUBLIC_PATH_PREFIXES) and does a trivial DB query, so this
+# reports a wedged/corrupted database as unhealthy too, not just "process is running."
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+	CMD wget --no-verbose --tries=1 --spider "http://localhost:$PORT/api/health" || exit 1
 ENTRYPOINT ["./entrypoint.sh"]

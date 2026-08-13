@@ -1731,6 +1731,35 @@ album; under the new trigger it still enriches (since
 link, and the track ends up with the album's real cover. Typecheck,
 lint, and build clean.
 
+### Docker health reporting
+
+The container had no `HEALTHCHECK`, so orchestrators/dashboards (e.g.
+Dockge) had nothing to show for the container's health beyond "is the
+process running" — the screenshot that prompted this showed `n/a`.
+
+Added a `/api/health` route: unauthenticated (added to
+`PUBLIC_PATH_PREFIXES` in `hooks.server.ts`, alongside `/login` and
+the webhook/auth routes) and runs a trivial `SELECT 1` against the
+raw `sqliteClient` connection, returning `200` on success or `503` on
+failure. Deliberately a real query, not a bare `200` — the main way
+this single-container app can be "up" but not actually working is a
+wedged or corrupted SQLite file, and a query is what would catch that.
+
+Wired it up via a Docker `HEALTHCHECK` using `wget --spider` (already
+present in the `node:22-alpine` base image via busybox — no extra
+package needed, unlike `curl`). `--start-period=15s` covers
+`entrypoint.sh`'s `drizzle-kit push`, which runs before `node build`
+starts listening, so a normal startup isn't counted as a failed check
+against the retry budget.
+
+Verified by starting the dev server and confirming `/api/health`
+returns `200 ok` without a session cookie, while an unrelated
+authenticated route (`/settings`) still correctly 303-redirects to
+`/login` — the public-path addition didn't broaden the auth gate
+itself. Typecheck, lint, and build clean; `docker build` wasn't run in
+this sandbox (no Docker daemon available here), so the `HEALTHCHECK`
+syntax itself hasn't been executed against a real container.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
