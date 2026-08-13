@@ -1760,6 +1760,31 @@ itself. Typecheck, lint, and build clean; `docker build` wasn't run in
 this sandbox (no Docker daemon available here), so the `HEALTHCHECK`
 syntax itself hasn't been executed against a real container.
 
+### Docker health reporting was checking the wrong loopback address
+
+After deploying the healthcheck above, the container reported
+`unhealthy`, not `n/a` — meaning the check was running, just failing.
+`docker inspect`'s health log showed why: `wget` was connecting to
+`localhost:$PORT` and getting `Connection refused` against `[::1]`
+(IPv6 loopback) specifically. Alpine/musl resolves `localhost` to
+`::1` first, but the Node server (adapter-node's default `HOST`)
+listens only on the IPv4 wildcard `0.0.0.0`, which doesn't cover the
+IPv6 loopback — so `wget localhost:...` fails even though the app is
+completely healthy and reachable on `127.0.0.1`.
+
+Fixed by pointing the healthcheck at `127.0.0.1` instead of
+`localhost`, sidestepping the address-family resolution question
+entirely.
+
+This is a good example of why the standing rule (added after the
+track-cover saga) of getting real evidence before re-guessing paid
+off: `docker inspect --format='{{json .State.Health}}'` gave the exact
+failing address and error on the first ask, rather than needing
+another guess-deploy-report cycle. Not independently re-verified end
+to end (no Docker daemon in this sandbox, same limitation as the
+change above) — confirmed only by matching the fix directly against
+the reported error text.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
