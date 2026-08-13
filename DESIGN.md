@@ -1785,6 +1785,18 @@ to end (no Docker daemon in this sandbox, same limitation as the
 change above) — confirmed only by matching the fix directly against
 the reported error text.
 
+### Added a PNG of the logo
+
+`static/logo.png` — a 512×512 transparent-background PNG of the "Play
+& Wave" brand mark (the same shape as the nav bar's inline SVG and
+`/favicon.svg`), rendered at the default amber accent color rather
+than dynamically, since a static file can't be accent-aware the way
+the favicon route is. Rendered by loading the exact same SVG markup
+in a headless browser and screenshotting just the `<svg>` element with
+a transparent background, rather than hand-rasterizing it, so the
+shape is pixel-identical to what's already on screen elsewhere in the
+app.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
