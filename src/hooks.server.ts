@@ -4,7 +4,13 @@ import { startBackgroundSync } from '$lib/server/sync/scheduler';
 
 // The browser requests the favicon before/regardless of auth (e.g. for the login page
 // itself), and it carries no user-specific data — just the current accent color.
-const PUBLIC_PATH_PREFIXES = ['/login', '/api/webhooks/', '/api/auth/', '/favicon.svg'];
+const PUBLIC_PATH_PREFIXES = [
+	'/login',
+	'/api/webhooks/',
+	'/api/auth/',
+	'/api/health',
+	'/favicon.svg'
+];
 
 // Runs once when this module is first loaded, i.e. once per server process.
 startBackgroundSync();
