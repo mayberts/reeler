@@ -9,7 +9,7 @@
 		trackNumber: number | null;
 		title: string;
 		runtimeLabel: string | null;
-		played: boolean;
+		playCount: number;
 		myRating: number | null;
 		myLists?: ListOption[];
 	}
@@ -19,10 +19,12 @@
 		trackNumber,
 		title,
 		runtimeLabel,
-		played,
+		playCount,
 		myRating: initialRating,
 		myLists = []
 	}: Props = $props();
+
+	const played = $derived(playCount > 0);
 
 	let myRating = $state(initialRating);
 	let rateOpen = $state(false);
@@ -87,16 +89,19 @@
 	<span class="track-title">{title}</span>
 	{#if runtimeLabel}<span class="track-duration">{runtimeLabel}</span>{/if}
 	{#if played}
-		<svg
-			class="played-icon"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2.5"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-			aria-label="Played"><path d="M20 6 9 17l-5-5" /></svg
-		>
+		<span class="play-count" title="Played {playCount} time{playCount === 1 ? '' : 's'}">
+			<svg
+				class="played-icon"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2.5"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-label="Played"><path d="M20 6 9 17l-5-5" /></svg
+			>
+			{playCount}
+		</span>
 	{/if}
 
 	<div class="track-actions">
@@ -214,11 +219,18 @@
 		font-size: 0.8rem;
 		font-variant-numeric: tabular-nums;
 	}
-	.played-icon {
+	.play-count {
 		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		gap: 0.2rem;
+		color: var(--accent);
+		font-size: 0.78rem;
+		font-variant-numeric: tabular-nums;
+	}
+	.played-icon {
 		width: 1rem;
 		height: 1rem;
-		color: var(--accent);
 	}
 	.track-actions {
 		flex-shrink: 0;

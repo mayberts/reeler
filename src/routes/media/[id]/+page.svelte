@@ -322,7 +322,7 @@
 				trackNumber={track.trackNumber}
 				title={track.title}
 				runtimeLabel={formatRuntime(track.runtimeMinutes)}
-				played={data.watchedTrackIds.includes(track.id)}
+				playCount={data.trackPlayCounts[track.id] ?? 0}
 				myRating={data.trackRatings[track.id] ?? null}
 				myLists={data.myLists}
 			/>
