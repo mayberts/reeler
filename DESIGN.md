@@ -2086,6 +2086,52 @@ as current; closing worked both via the close button and a backdrop
 click; a badge with zero progress showed "Not yet unlocked" and no
 reached rows. Typecheck, lint, and build clean.
 
+### Nav redesign: icon rail + search, replacing the top pill bar
+
+The top header had grown to nine links (plus a tenth, Settings, for
+admins) crammed into one horizontal pill — flagged as cluttered and
+dated-looking. Explored the direction first: mocked up three
+genuinely different nav shells (a labeled sidebar, a slimmed-down top
+bar with an overflow menu, and an icon-only rail with a
+search-forward header) as a design canvas against the real dashboard
+content, rather than guessing at a single redesign. The icon rail was
+picked.
+
+`+layout.svelte`'s old `<header>` (brand + pill nav + username/sign-out
+form) is gone, replaced by a `.shell` flex row: a full-height 4.5rem
+icon-only rail (`.rail`, `position: sticky`) on the left with the nine
+section icons plus Settings for admins, active state a filled accent
+circle matching the badge-card and rate-button convention elsewhere;
+and a `.main-col` on the right holding a slim `.topbar` (search input
++ avatar/username/sign-out) above the existing `<main>`. Icons are
+mostly exact reuses of paths already in the codebase (bottom-nav's
+home/movies/shows/music/history/lists, the rate-star polygon) — only
+Stats, Badges, and Settings needed a fresh hand-drawn icon, kept to
+the same stroke-based 24×24 style. Below the existing 46rem mobile
+breakpoint the rail hides entirely and the pre-existing bottom-nav
+(itself already icon-based) takes over unchanged — the topbar stays,
+now showing a small brand mark in place of the hidden rail's logo.
+Moved `.app`/`header`/`.brand`/`nav`-family rules out of the global
+`app.css` into this component's own scoped styles, since nothing else
+in the app used them.
+
+The search box is real, not decorative: it hits the existing
+`/api/media/search` title-search endpoint (already used by the
+ratings/lists UI) on a 200ms debounce and shows a dropdown of
+matches linking straight to each item's detail page. One real bug
+surfaced during testing: clicking a result appeared to do nothing —
+the `onclick` handler cleared the search state (and with it, the
+`<a>` itself) synchronously, before the browser's own click handling
+had a chance to follow the link. Deferring that cleanup with
+`setTimeout(fn, 0)` let the navigation happen first.
+
+Verified with Playwright against seeded data: the rail's active-item
+highlight, the Settings icon appearing only for an admin user and not
+a regular one, the search dropdown surfacing a seeded movie and
+correctly navigating to it on click, and the mobile viewport (390px)
+correctly hiding the rail in favor of the existing bottom-nav.
+Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
