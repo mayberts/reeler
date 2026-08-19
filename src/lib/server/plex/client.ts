@@ -58,6 +58,16 @@ export function getMetadata(ratingKey: string) {
 }
 
 /**
+ * The direct children of a container item — an album's tracks. Each track comes back
+ * with `parentRatingKey`/`parentTitle` already pointing at this album, the same as a
+ * bulk library listing, so a returned item can be handed straight to
+ * `upsertMediaItemFromPlex` without any further enrichment fetch.
+ */
+export function getChildren(ratingKey: string) {
+	return plexFetch<PlexMetadataResponse>(`/library/metadata/${ratingKey}/children`);
+}
+
+/**
  * Watch history, optionally filtered to a single Plex Home user (`accountId`) and/or
  * since a given unix timestamp. Used both for initial backfill and as the polling
  * backstop that reconciles anything a missed webhook would otherwise lose.
