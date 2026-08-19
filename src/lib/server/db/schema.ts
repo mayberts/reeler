@@ -85,6 +85,11 @@ export const mediaItems = sqliteTable(
 		episodeNumber: integer('episode_number'),
 		/** Set on `season` rows — Plex's own episode count for that season. */
 		episodeCount: integer('episode_count'),
+		/** Set on `album` rows — Plex's own track count for that album (its `leafCount`,
+		 *  same field seasons use for episode count). Used to tell a fully-played album
+		 *  apart from one that's merely been played from, the same way `episodeCount`
+		 *  does for a finished season. */
+		trackCount: integer('track_count'),
 		/** Network (shows) or studio (movies), from Plex's own `studio` field. */
 		studio: text('studio'),
 		/** Plex's own critic score (0-10), e.g. Rotten Tomatoes — distinct from a user's own rating. */

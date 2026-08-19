@@ -56,5 +56,8 @@
 		<rect x="17.5" y="14" width="4" height="6" rx="1.5" />
 	{:else if name === 'zap'}
 		<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" />
+	{:else if name === 'checkCircle'}
+		<circle cx="12" cy="12" r="9" />
+		<path d="m8 12.3 2.6 2.6L16 9.5" />
 	{/if}
 </svg>

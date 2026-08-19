@@ -285,6 +285,45 @@ async function getWatchedShowCompletion(userId: string) {
 	return { finishedShowDates, showGenreEntries };
 }
 
+/**
+ * Dates each fully-played album was completed — an album where every one of its
+ * tracks (per its own `trackCount`, Plex's `leafCount` synced onto the album row, see
+ * `sync/media-item.ts`) has been played at least once. Unlike show completion, this
+ * needs no season/show hierarchy resolution: a track's `parentId` already points
+ * straight at its album. An album with no known `trackCount` (never enriched, or
+ * played before this synced) can't be judged complete and is skipped rather than
+ * guessed at.
+ */
+async function getCompletedAlbumDates(trackRows: WatchRow[]): Promise<Date[]> {
+	const byAlbum = new Map<string, { trackIds: Set<string>; lastWatchedAt: Date }>();
+	for (const row of trackRows) {
+		if (!row.parentId) continue;
+		let entry = byAlbum.get(row.parentId);
+		if (!entry) {
+			entry = { trackIds: new Set(), lastWatchedAt: row.watchedAt };
+			byAlbum.set(row.parentId, entry);
+		}
+		entry.trackIds.add(row.mediaItemId);
+		if (row.watchedAt > entry.lastWatchedAt) entry.lastWatchedAt = row.watchedAt;
+	}
+	if (byAlbum.size === 0) return [];
+
+	const albumIds = [...byAlbum.keys()];
+	const albumRows = await db
+		.select({ id: mediaItems.id, trackCount: mediaItems.trackCount })
+		.from(mediaItems)
+		.where(inArray(mediaItems.id, albumIds));
+
+	const dates: Date[] = [];
+	for (const album of albumRows) {
+		const entry = byAlbum.get(album.id)!;
+		if (album.trackCount && entry.trackIds.size >= album.trackCount) {
+			dates.push(entry.lastWatchedAt);
+		}
+	}
+	return dates.sort((a, b) => a.getTime() - b.getTime());
+}
+
 function buildProgress(def: BadgeDef, result: TierResult): BadgeProgress {
 	return {
 		id: def.id,
@@ -377,6 +416,7 @@ export async function getBadgeProgress(userId: string): Promise<BadgeProgress[]>
 	const musicGenresExploredDates = distinctValueFirstSeenDates(
 		musicTitleEntries.map((r) => ({ watchedAt: r.watchedAt, value: parseGenres(r.genres) }))
 	);
+	const completedAlbumDates = await getCompletedAlbumDates(trackRows);
 
 	const results: BadgeProgress[] = [
 		buildProgress(
@@ -456,6 +496,10 @@ export async function getBadgeProgress(userId: string): Promise<BadgeProgress[]>
 		buildProgress(
 			findBadge('music_binge_day'),
 			tierProgressFromDailyMax(dailyCounts(trackRows), findBadge('music_binge_day').tiers)
+		),
+		buildProgress(
+			findBadge('album_complete'),
+			tierProgressFromDates(completedAlbumDates, findBadge('album_complete').tiers)
 		)
 	];
 
