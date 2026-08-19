@@ -19,6 +19,19 @@ async function watchedIdsAmong(userId: string, itemIds: string[]): Promise<Set<s
 	return new Set(rows.map((r) => r.mediaItemId));
 }
 
+/** Bulk lookup of how many times a user has played each of a set of media items —
+ *  same rationale as `watchedIdsAmong`, but a full count rather than a yes/no, so the
+ *  tracklist can show "played 3 times" instead of just a checkmark. */
+async function playCountsAmong(userId: string, itemIds: string[]): Promise<Map<string, number>> {
+	if (itemIds.length === 0) return new Map();
+	const rows = await db
+		.select({ mediaItemId: watchHistory.mediaItemId, playCount: count() })
+		.from(watchHistory)
+		.where(and(eq(watchHistory.userId, userId), inArray(watchHistory.mediaItemId, itemIds)))
+		.groupBy(watchHistory.mediaItemId);
+	return new Map(rows.map((r) => [r.mediaItemId, r.playCount]));
+}
+
 /** Bulk lookup of a user's ratings across a set of media items — same rationale as
  *  `watchedIdsAmong`, used by the tracklist so each row can show its own rating. */
 async function ratingsAmong(userId: string, itemIds: string[]): Promise<Map<string, number>> {
@@ -79,12 +92,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		getOrFetchAlbumTracklist(item)
 	]);
 
-	const [watchedEpisodeIds, watchedTrackIds, trackRatings] = await Promise.all([
+	const [watchedEpisodeIds, trackPlayCounts, trackRatings] = await Promise.all([
 		watchedIdsAmong(
 			userId,
 			episodes.map((e) => e.id)
 		),
-		watchedIdsAmong(
+		playCountsAmong(
 			userId,
 			(tracklist ?? []).map((t) => t.id)
 		),
@@ -101,7 +114,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		episodes,
 		watchedEpisodeIds: [...watchedEpisodeIds],
 		tracklist,
-		watchedTrackIds: [...watchedTrackIds],
+		trackPlayCounts: Object.fromEntries(trackPlayCounts),
 		trackRatings: Object.fromEntries(trackRatings),
 		watchCount,
 		lastWatchedAt: lastWatch?.watchedAt ?? null,

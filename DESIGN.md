@@ -2037,6 +2037,28 @@ reload; adding it to the list worked and showed the "Added"
 confirmation. Confirmed both writes landed in the database directly.
 Typecheck, lint, and build clean.
 
+### Tracklist rows show a play count, not just a checkmark
+
+The checkmark from the tracklist feature above only ever said
+"played at least once" — it came from `watchedIdsAmong`, a bulk
+existence check shared with episodes, which don't need more than
+that (an episode is normally watched once). Tracks are different:
+someone can loop a song a dozen times, and the checkmark was
+throwing that away. Asked to actually count it.
+
+New `playCountsAmong` in `+page.server.ts` (same bulk-query shape as
+`watchedIdsAmong`, just grouped with a `count()` instead of a
+`selectDistinct`) replaces it for the tracklist specifically —
+episodes keep the boolean version, since a per-episode replay count
+isn't useful there. `TrackRow.svelte`'s `played` prop became
+`playCount: number`; the row still shows the same checkmark when
+`playCount > 0`, now with the number printed next to it.
+
+Verified against seeded watch history (one track played 3 times, one
+never played): the played track's row showed a "✓ 3" badge, the
+untouched track showed no badge at all. Typecheck, lint, and build
+clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
