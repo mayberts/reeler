@@ -2132,6 +2132,29 @@ correctly navigating to it on click, and the mobile viewport (390px)
 correctly hiding the rail in favor of the existing bottom-nav.
 Typecheck, lint, and build clean.
 
+### Fixed: History's Shows filter was missing almost everything
+
+Reported: the History page's "All" tab showed plenty of episodes and
+tracks, but switching to "Shows" dropped to only a handful of much
+older entries. The filter was `mediaItems.type = 'show'` — but a real
+Plex scrobble always lands on the episode, never the show itself (the
+same fact that already makes the show detail page hide its own
+"Watched" pill, and the same reason `getWatchedShowCompletion` in the
+badges code walks episode watches rather than the show's own). A
+show's own `watch_history` row only ever exists from a manual
+"mark watched" click or a manually-logged entry — a small minority of
+what's actually watched. The Music filter already got this right
+(`album` OR `track`); the Shows filter needed the same treatment,
+matching `show` OR `episode`.
+
+Verified with seeded data mirroring the report: a movie (real Plex
+scrobble), a show's episode (real Plex scrobble, landing on the
+episode), and a second show marked watched manually on its own page.
+Before the fix, the Shows filter showed only the manually-marked
+show; after, it correctly shows both that and the episode, matching
+what "All" already showed. Movies filter unaffected. Typecheck and
+lint clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

@@ -66,12 +66,20 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const typeFilter = isHistoryTypeFilter(typeParam) ? typeParam : null;
 	const page = Math.max(1, Number(url.searchParams.get('page') ?? 1) || 1);
 
+	// A show's own watch_history rows only ever come from a manual "mark watched" click
+	// or a manually-logged entry (see media/[id]'s markWatched action and logManual
+	// above) — real Plex playback always scrobbles the episode, never the show itself
+	// (same reason the show detail page hides its own "Watched" pill). So the Shows
+	// filter has to match episodes too, the same way the Music filter already matches
+	// both albums and tracks, or it misses almost everything actually watched.
 	const typeCondition =
-		typeFilter === 'movie' || typeFilter === 'show'
-			? eq(mediaItems.type, typeFilter)
-			: typeFilter === 'music'
-				? or(eq(mediaItems.type, 'album'), eq(mediaItems.type, 'track'))
-				: undefined;
+		typeFilter === 'movie'
+			? eq(mediaItems.type, 'movie')
+			: typeFilter === 'show'
+				? or(eq(mediaItems.type, 'show'), eq(mediaItems.type, 'episode'))
+				: typeFilter === 'music'
+					? or(eq(mediaItems.type, 'album'), eq(mediaItems.type, 'track'))
+					: undefined;
 
 	const where = typeCondition
 		? and(eq(watchHistory.userId, user.id), typeCondition)
