@@ -2059,6 +2059,33 @@ never played): the played track's row showed a "✓ 3" badge, the
 untouched track showed no badge at all. Typecheck, lint, and build
 clean.
 
+### Badge cards open a detail dialog
+
+A badge card only ever showed progress toward the *next* tier — no
+way to see the full 10-tier ladder, or which ones were already
+crossed. Asked to make each card clickable to show that.
+
+`BadgeCard.svelte`'s outer `<div>` became a `<button>` (CSS-reset
+with `all: unset` and the original layout reapplied, so it's a real
+interactive element — keyboard-focusable and screen-reader-announced
+as a button — rather than a click handler bolted onto a div), which
+opens a native `<dialog>` on click: the badge's icon, name,
+description, current tier and when it was reached, the same progress
+bar as the card, and a scrollable list of all 10 tiers with a
+checkmark on every one already reached and the current tier
+highlighted. Closes via an explicit close button or a click on the
+backdrop, both native `<dialog>` idioms. `BadgeProgress` (in
+`badges/compute.ts`) gained a `tiers: number[]` field — the full
+threshold ladder, not just the next target — since the dialog needed
+data the card itself never did.
+
+Verified with seeded data (20 movies watched, landing between
+Cinephile's tier 2 and 3 thresholds of 15/30): opening the card
+showed exactly 2 of 10 tier rows marked reached, tier 2 highlighted
+as current; closing worked both via the close button and a backdrop
+click; a badge with zero progress showed "Not yet unlocked" and no
+reached rows. Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
