@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import EpisodeRow from '$lib/components/EpisodeRow.svelte';
+	import TrackRow from '$lib/components/TrackRow.svelte';
 
 	// Matches the cap `getTmdbCredits` applies server-side — used only to decide whether
 	// to show a "there may be more" link, not to do any trimming here.
@@ -316,25 +317,15 @@
 	<h2 class="section-headline">Tracklist</h2>
 	<ol class="tracklist">
 		{#each data.tracklist as track (track.id)}
-			<li class="track-row" class:played={data.watchedTrackIds.includes(track.id)}>
-				<span class="track-number">{track.trackNumber ?? ''}</span>
-				<span class="track-title">{track.title}</span>
-				{#if track.runtimeMinutes}
-					<span class="track-duration">{formatRuntime(track.runtimeMinutes)}</span>
-				{/if}
-				{#if data.watchedTrackIds.includes(track.id)}
-					<svg
-						class="played-icon"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						aria-label="Played"><path d="M20 6 9 17l-5-5" /></svg
-					>
-				{/if}
-			</li>
+			<TrackRow
+				id={track.id}
+				trackNumber={track.trackNumber}
+				title={track.title}
+				runtimeLabel={formatRuntime(track.runtimeMinutes)}
+				played={data.watchedTrackIds.includes(track.id)}
+				myRating={data.trackRatings[track.id] ?? null}
+				myLists={data.myLists}
+			/>
 		{/each}
 	</ol>
 {/if}
@@ -714,42 +705,5 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.15rem;
-	}
-	.track-row {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		padding: 0.55rem 0.75rem;
-		border-radius: var(--radius-sm);
-	}
-	.track-row.played {
-		background: var(--surface-raised);
-	}
-	.track-number {
-		flex-shrink: 0;
-		width: 1.5rem;
-		text-align: right;
-		font-variant-numeric: tabular-nums;
-		color: var(--ink-muted);
-		font-size: 0.85rem;
-	}
-	.track-title {
-		flex: 1;
-		min-width: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.track-duration {
-		flex-shrink: 0;
-		color: var(--ink-muted);
-		font-size: 0.8rem;
-		font-variant-numeric: tabular-nums;
-	}
-	.played-icon {
-		flex-shrink: 0;
-		width: 1rem;
-		height: 1rem;
-		color: var(--accent);
 	}
 </style>
