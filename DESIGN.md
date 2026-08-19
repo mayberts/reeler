@@ -2004,6 +2004,39 @@ a second time and confirmed no further Plex call/row duplication —
 the `trackCount`-satisfied short-circuit works. Typecheck, lint, and
 build clean.
 
+### Tracklist rows get a rate + add-to-list button
+
+Filled in the gap the previous entry deliberately left open: each
+track row now has its own action bar, matching what `EpisodeRow`
+already offers episodes. New `TrackRow.svelte` (`lib/components`)
+replaces the plain `<li>` markup that used to live inline in the
+album page — same number/title/duration/played-check display, plus a
+compact rate action (click to reveal a 0–10 number input, save posts
+the value) and, when the user has any owned lists, an add-to-list
+action (click to reveal a `<select>`, auto-opened the same way
+`EpisodeRow`'s does). Both mirror `EpisodeRow`'s reveal-on-click
+pattern almost verbatim, just sized down for a denser single-line row.
+
+Rating needed a new endpoint: `POST /api/media/[id]/rate`
+(`routes/api/media/[id]/rate`) is the JSON-API twin of the album/track
+detail page's own `?/rate` form action, the same reason `/watch` and
+`/lists` already exist — a form action is page-scoped and can't be
+invoked from a component embedded several levels down. It just
+validates a 0–10 integer and calls the existing `setRating`, which
+already best-effort writes the change back to Plex when the item has
+a `plexRatingKey` — nothing new needed there. `+page.server.ts` gained
+a `ratingsAmong` bulk lookup (same shape as the existing
+`watchedIdsAmong`) so every track's own rating loads in one query
+rather than N+1.
+
+Verified end-to-end against seeded data (an album with two tracks, one
+pre-rated with prior watch history, one untouched, plus a list owned
+by the test user): rating the untouched track through the UI saved
+correctly, showed immediately, and was still there after a full page
+reload; adding it to the list worked and showed the "Added"
+confirmation. Confirmed both writes landed in the database directly.
+Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

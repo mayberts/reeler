@@ -19,6 +19,17 @@ async function watchedIdsAmong(userId: string, itemIds: string[]): Promise<Set<s
 	return new Set(rows.map((r) => r.mediaItemId));
 }
 
+/** Bulk lookup of a user's ratings across a set of media items — same rationale as
+ *  `watchedIdsAmong`, used by the tracklist so each row can show its own rating. */
+async function ratingsAmong(userId: string, itemIds: string[]): Promise<Map<string, number>> {
+	if (itemIds.length === 0) return new Map();
+	const rows = await db
+		.select({ mediaItemId: ratings.mediaItemId, value: ratings.value })
+		.from(ratings)
+		.where(and(eq(ratings.userId, userId), inArray(ratings.mediaItemId, itemIds)));
+	return new Map(rows.map((r) => [r.mediaItemId, r.value]));
+}
+
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) error(401, 'Not authenticated');
 	const userId = locals.user.id;
@@ -68,12 +79,16 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		getOrFetchAlbumTracklist(item)
 	]);
 
-	const [watchedEpisodeIds, watchedTrackIds] = await Promise.all([
+	const [watchedEpisodeIds, watchedTrackIds, trackRatings] = await Promise.all([
 		watchedIdsAmong(
 			userId,
 			episodes.map((e) => e.id)
 		),
 		watchedIdsAmong(
+			userId,
+			(tracklist ?? []).map((t) => t.id)
+		),
+		ratingsAmong(
 			userId,
 			(tracklist ?? []).map((t) => t.id)
 		)
@@ -87,6 +102,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		watchedEpisodeIds: [...watchedEpisodeIds],
 		tracklist,
 		watchedTrackIds: [...watchedTrackIds],
+		trackRatings: Object.fromEntries(trackRatings),
 		watchCount,
 		lastWatchedAt: lastWatch?.watchedAt ?? null,
 		myRating: rating?.value ?? null,
