@@ -1797,6 +1797,99 @@ a transparent background, rather than hand-rasterizing it, so the
 shape is pixel-identical to what's already on screen elsewhere in the
 app.
 
+### Badges
+
+A new `/badges` page: 17 achievement badges across two categories
+("Movies & Shows" and "Music"), each with 4 tiers, inspired by
+Seenr's badges page but scoped to what Reeler actually tracks — no
+XP/leveling system (deliberately skipped, see below), and nothing
+needing data Reeler doesn't have (a quiz feature, reviews/comments,
+country-of-origin or dub-vs-original tracking, a social graph). Half
+the catalog is music-specific, since that's a category Seenr itself
+doesn't cover.
+
+**No XP.** Considered a full XP/leveling system matching Seenr's
+("Level 1, 0 XP, 150 XP to next") but chose badges-only: XP adds a
+whole extra design surface (per-action XP values, a level curve) for
+a self-hosted single/household app where "leveling up" doesn't serve
+the same competitive-app-store purpose it does for Seenr.
+
+**No persistence.** A badge's tier and "earned on" date are computed
+live from existing `watch_history`/`lists` rows on every page load
+(`getBadgeProgress` in `lib/server/badges/compute.ts`) rather than
+stored anywhere — there's no `badges` or `user_badges` table, no
+background job, no risk of stored progress drifting from what the
+history actually says. Cheap enough for a single user's history to
+compute on every visit: a handful of queries, not a full-library scan.
+The catalog itself (names, descriptions, tier thresholds, icons) is a
+static list in `lib/server/badges/catalog.ts`, the same pattern as
+`ACCENT_COLORS`.
+
+Per-metric computation, all derived from one ascending-by-`watchedAt`
+query (plus one extra pass for show-completion, since that needs the
+episode → season → show hierarchy `getShowProgress` already resolves
+the same way):
+
+- Simple counts (movies/episodes/tracks/albums watched, lists
+  created) — tier `N`'s "earned on" date is the date the `tiers[N-1]`-th
+  distinct unit was first encountered.
+- Cumulative (hours watched/listened) — running sum of `runtimeMinutes`
+  in `watchedAt` order; a tier's date is when the sum first crossed
+  that many hours.
+- Streaks (days in a row with a watch/listen) — longest run of
+  consecutive calendar days ever achieved (all-time best, not just the
+  currently active streak); a tier's date is the day that run first
+  reached that length.
+- Binge-day (episodes/tracks in a single day) — highest single-day
+  count ever, with each tier dated to the first day that count was
+  reached.
+- Rewatch/on-repeat (a title watched more than once) — dated to the
+  _second_ watch of whichever title was the first to reach that many
+  repeat-watched titles.
+- Distinct genres/artists explored — a title can introduce several
+  genres at once (all dated to that title's first watch); genres for
+  an episode come from its _show_, not the episode itself, since Plex
+  doesn't set per-episode genres — same two-hop episode → season →
+  show resolution as `getShowProgress`, run once and reused for both
+  the "shows finished" and "genres explored" badges.
+
+**Left off, and why:** anything needing data Reeler doesn't collect —
+Trivia Hound/quiz badges (no quiz feature), Globetrotter/Otaku/Korean
+Wave (no country-of-origin or language metadata), Purist/Bilingual (no
+dub-vs-original tracking), Critic/Chatterbox/Meme Lord (no
+reviews/comments feature — Reeler only has numeric ratings),
+Procrastinator/Backlog buster (no "to watch" list status), and every
+social badge (Social/Groupie/Ambassador/podium finishes — no friends
+graph or leaderboard). "Album Completionist" (every track of an album
+played) is left out as a stretch item: it needs a full album tracklist
+synced from Plex, which Reeler currently never does — tracks are only
+created lazily as they're actually played, and syncing full tracklists
+cuts against that design; revisit only if it's worth the extra sync
+scope on its own.
+
+Icons are new, hand-drawn SVGs in the same stroke style already used
+throughout the nav (`BadgeIcon.svelte`), not copied from Seenr —
+generic pictograms (TV, clapperboard, flame, compass, headphones,
+etc.), one component with a `name` prop rather than inline markup per
+badge.
+
+Verified against a seeded dataset covering every metric at once
+(two shows — one fully watched, one not; movies across 3 genres; a
+rewatch; a same-day 3-episode binge; a 10-day watch streak spanning a
+gap; 5 albums and 12 tracks across 5 artists/3 genres with a repeat
+play and a 12-day listen streak; one list) — every one of the 17
+badges' computed current value, tier, and next-target matched hand
+calculations exactly, including the trickiest ones (the 10-day and
+12-day streaks, both binge-day counts, and the show-completion date).
+Caught and fixed a bug in the _test seed script_ along the way, not
+in the app: drizzle's `timestamp` column mode stores/reads seconds,
+and the first seeding pass inserted raw millisecond epochs via raw
+SQL, bypassing drizzle's own serialization — dates came back centuries
+wrong (e.g. "earned on ...58601") and every streak collapsed to 1,
+since day-gap arithmetic broke even though relative ordering (and
+therefore every count/sum-based badge) stayed correct by coincidence.
+Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),
