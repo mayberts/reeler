@@ -13,6 +13,9 @@ export interface BadgeProgress {
 	/** 0 = locked, 1..tiers.length = highest tier reached. */
 	tierIndex: number;
 	tierCount: number;
+	/** Every tier's threshold, ascending — lets the detail view show the full ladder,
+	 *  not just the next one. */
+	tiers: number[];
 	currentValue: number;
 	/** Threshold for the next tier, or null once every tier is maxed out. */
 	nextTarget: number | null;
@@ -333,6 +336,7 @@ function buildProgress(def: BadgeDef, result: TierResult): BadgeProgress {
 		icon: def.icon,
 		tierIndex: result.tierIndex,
 		tierCount: def.tiers.length,
+		tiers: def.tiers,
 		currentValue: result.currentValue,
 		nextTarget: result.nextTarget,
 		unlockedAt: result.unlockedAt
