@@ -17,6 +17,7 @@
 		{ href: '/ratings', label: 'Ratings' },
 		{ href: '/lists', label: 'Lists' },
 		{ href: '/stats', label: 'Stats' },
+		{ href: '/badges', label: 'Badges' },
 		...(data.user?.isAdmin ? [{ href: '/settings', label: 'Settings' }] : [])
 	] as const);
 
