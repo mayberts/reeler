@@ -1915,6 +1915,45 @@ showed "Tier 3/10" with `30 / 75` remaining, matching the new thresholds
 exactly; spot-checked Time Sink and Consistency similarly. Typecheck,
 lint, and build clean.
 
+### Built the Album Completionist stretch item
+
+Turned out to need far less than the original stretch-item note
+assumed. That note worried about syncing full album tracklists
+cutting against "music isn't pre-synced, only what's actually played"
+— but Plex's `leafCount` field (a container's total child count) is
+already present on any album's full metadata response, and albums
+already go through the exact same enrichment fetch every track's
+parent-album stub triggers (`enrichSparseItem` in `sync/media-item.ts`,
+proven reliable for albums back in the track-cover investigation). So
+this needed no new Plex request at all — just reading a field that
+was already coming back on a call already being made, the same way
+`episodeCount` is read off a season's `leafCount`.
+
+Added a `trackCount` column to `media_items` (set only on `album`
+rows, mirroring `episodeCount` on `season` rows), populated in
+`upsertMediaItemFromPlex` from `item.leafCount` when the type is
+`album`. "Album Completionist" (`getCompletedAlbumDates` in
+`badges/compute.ts`) then works exactly like show completion: group a
+user's track watches by their album's `parentId`, mark an album
+complete once its distinct-tracks-played count reaches its own
+`trackCount`, dated to the _last_ of those tracks' watch times (the
+one that necessarily completed it) — no season/show-style multi-hop
+hierarchy needed, since a track's `parentId` already points straight
+at its album. An album with no `trackCount` yet (never enriched) is
+skipped rather than guessed at. Existing albums synced before this
+change will pick up their `trackCount` the same way any other
+previously-missing field backfills here: the next time they're
+re-upserted, e.g. via "Pull history from Plex."
+
+Verified against a mocked Plex server: two albums, one with 2 tracks
+(both played — complete) and one with 3 tracks (2 played — not
+complete). Confirmed `track_count` landed correctly on both album rows
+(2 and 3) after a real "Pull history from Plex" run through the actual
+upsert/enrichment code path (not a raw seed), and that the badges page
+showed Album Completionist unlocked at Tier 1/10 with a current value
+of 1 — exactly the one complete album, not the incomplete one.
+Typecheck, lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

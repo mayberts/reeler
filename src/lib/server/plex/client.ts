@@ -183,7 +183,8 @@ export interface PlexMetadataItem {
 	index?: number;
 	/** On an episode item, its season's number. */
 	parentIndex?: number;
-	/** On a season item, Plex's own episode count for it. */
+	/** Plex's own child count for any container item — a season's episode count, or an
+	 *  album's track count. */
 	leafCount?: number;
 	/** Air date, `YYYY-MM-DD` — set on episode (and movie) items. */
 	originallyAvailableAt?: string;

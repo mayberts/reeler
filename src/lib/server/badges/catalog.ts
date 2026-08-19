@@ -30,7 +30,8 @@ export type BadgeMetric =
 	| 'musicHoursListened'
 	| 'listenStreakDays'
 	| 'repeatedTracks'
-	| 'bingeDayTracks';
+	| 'bingeDayTracks'
+	| 'albumsCompleted';
 
 /** One of the hand-drawn icons in `BadgeIcon.svelte`, keyed by name rather than inline
  *  markup so every badge card renders through the same trusted, checked-in SVGs. */
@@ -47,7 +48,8 @@ export type BadgeIconName =
 	| 'musicNote'
 	| 'disc'
 	| 'headphones'
-	| 'zap';
+	| 'zap'
+	| 'checkCircle';
 
 export interface BadgeDef {
 	id: string;
@@ -217,5 +219,14 @@ export const BADGES: BadgeDef[] = [
 		metric: 'bingeDayTracks',
 		tiers: [10, 20, 35, 50, 75, 100, 150, 200, 300, 500],
 		icon: 'zap'
+	},
+	{
+		id: 'album_complete',
+		name: 'Album Completionist',
+		description: 'Albums played all the way through',
+		category: 'music',
+		metric: 'albumsCompleted',
+		tiers: [1, 3, 5, 10, 20, 35, 50, 75, 100, 150],
+		icon: 'checkCircle'
 	}
 ];

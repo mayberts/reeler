@@ -185,7 +185,13 @@ export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promis
 			existing?.seasonNumber ??
 			null,
 		episodeNumber: (type === 'episode' ? item.index : undefined) ?? existing?.episodeNumber ?? null,
-		episodeCount: (type === 'season' ? item.leafCount : undefined) ?? existing?.episodeCount ?? null
+		episodeCount:
+			(type === 'season' ? item.leafCount : undefined) ?? existing?.episodeCount ?? null,
+		// Same `leafCount` field seasons use for their episode count — Plex sets it on
+		// any container with children, album included. Comes along for free on the same
+		// enrichment fetch that already resolves an album's parentRatingKey/thumb (see
+		// enrichSparseItem above), so this needs no extra Plex request of its own.
+		trackCount: (type === 'album' ? item.leafCount : undefined) ?? existing?.trackCount ?? null
 	};
 
 	// Breadcrumb for diagnosing a track that still ends up with no cover after all the
