@@ -1890,6 +1890,31 @@ since day-gap arithmetic broke even though relative ordering (and
 therefore every count/sum-based badge) stayed correct by coincidence.
 Typecheck, lint, and build clean.
 
+### Badges: 10 tiers per badge instead of 4
+
+Went with 4 tiers per badge in the original build (uniform, easy-to-reach
+thresholds), on the reasoning that Seenr's own tier counts aren't even
+consistent across badges (Marathoner has 9, Trivia Hound has 5). Asked
+explicitly to match a 10-tier depth instead — every badge now has 10
+ascending thresholds, mirroring Seenr's own long-tail-grind shape
+(Marathoner's episodes-watched scale stays close to Seenr's actual
+9-tier numbers, extended with a 10th: `10, 50, 100, 500, 1000, 2500,
+5000, 10000, 25000, 50000`), with every other badge's 10 thresholds
+scaled down proportionally to what's realistic for that metric (movies
+peak out around 5000, genres cap around 25 since that's roughly TMDb's
+whole taxonomy, streak days cap at 365).
+
+Pure catalog-data change — `tiers: number[]` was never assumed to be
+length 4 anywhere in `compute.ts` or the UI (`BadgeCard.svelte` already
+renders `Tier {tierIndex}/{tierCount}` off the array's real length), so
+no other code needed to change.
+
+Verified by reseeding 30 distinct movie watches (crossing the new
+Cinephile tiers 1/2/3 at 5/15/30 exactly) and confirming the page
+showed "Tier 3/10" with `30 / 75` remaining, matching the new thresholds
+exactly; spot-checked Time Sink and Consistency similarly. Typecheck,
+lint, and build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

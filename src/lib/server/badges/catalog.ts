@@ -55,7 +55,8 @@ export interface BadgeDef {
 	description: string;
 	category: BadgeCategory;
 	metric: BadgeMetric;
-	/** Ascending unit thresholds, one per tier — e.g. `[10, 50, 200, 500]`. */
+	/** Ascending unit thresholds, one per tier — 10 tiers per badge, e.g.
+	 *  `[10, 50, 100, 500, 1000, 2500, 5000, 10000, 25000, 50000]`. */
 	tiers: number[];
 	icon: BadgeIconName;
 }
@@ -68,7 +69,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Episodes watched',
 		category: 'movies_shows',
 		metric: 'episodesWatched',
-		tiers: [10, 50, 200, 500],
+		tiers: [10, 50, 100, 500, 1000, 2500, 5000, 10000, 25000, 50000],
 		icon: 'tv'
 	},
 	{
@@ -77,7 +78,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Movies watched',
 		category: 'movies_shows',
 		metric: 'moviesWatched',
-		tiers: [5, 20, 50, 100],
+		tiers: [5, 15, 30, 75, 150, 300, 600, 1200, 2500, 5000],
 		icon: 'clapperboard'
 	},
 	{
@@ -86,7 +87,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Shows completed',
 		category: 'movies_shows',
 		metric: 'showsFinished',
-		tiers: [1, 5, 15, 30],
+		tiers: [1, 3, 5, 10, 20, 35, 50, 75, 100, 150],
 		icon: 'flag'
 	},
 	{
@@ -95,7 +96,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Hours watched',
 		category: 'movies_shows',
 		metric: 'hoursWatched',
-		tiers: [10, 50, 150, 300],
+		tiers: [10, 25, 50, 100, 250, 500, 1000, 2000, 4000, 8000],
 		icon: 'clock'
 	},
 	{
@@ -104,7 +105,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Days in a row with a watch',
 		category: 'movies_shows',
 		metric: 'watchStreakDays',
-		tiers: [3, 7, 14, 30],
+		tiers: [3, 5, 7, 14, 21, 30, 60, 90, 180, 365],
 		icon: 'flame'
 	},
 	{
@@ -113,7 +114,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Different genres watched',
 		category: 'movies_shows',
 		metric: 'genresExplored',
-		tiers: [3, 6, 10, 15],
+		tiers: [3, 5, 8, 10, 12, 15, 18, 20, 22, 25],
 		icon: 'compass'
 	},
 	{
@@ -122,7 +123,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Episodes watched more than once',
 		category: 'movies_shows',
 		metric: 'rewatchedEpisodes',
-		tiers: [1, 5, 15, 30],
+		tiers: [1, 3, 5, 10, 20, 35, 50, 75, 100, 150],
 		icon: 'repeat'
 	},
 	{
@@ -131,7 +132,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Episodes watched in a single day',
 		category: 'movies_shows',
 		metric: 'bingeDayEpisodes',
-		tiers: [3, 5, 8, 12],
+		tiers: [3, 5, 8, 12, 16, 20, 25, 30, 40, 50],
 		icon: 'moon'
 	},
 	{
@@ -140,7 +141,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Lists created',
 		category: 'movies_shows',
 		metric: 'listsCreated',
-		tiers: [1, 3, 5, 10],
+		tiers: [1, 2, 3, 5, 8, 12, 16, 20, 25, 30],
 		icon: 'list'
 	},
 
@@ -151,7 +152,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Tracks played',
 		category: 'music',
 		metric: 'tracksPlayed',
-		tiers: [10, 50, 200, 500],
+		tiers: [10, 50, 100, 500, 1000, 2500, 5000, 10000, 25000, 50000],
 		icon: 'musicNote'
 	},
 	{
@@ -160,7 +161,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Albums played',
 		category: 'music',
 		metric: 'albumsPlayed',
-		tiers: [5, 20, 50, 100],
+		tiers: [5, 15, 30, 75, 150, 300, 600, 1200, 2500, 5000],
 		icon: 'disc'
 	},
 	{
@@ -169,7 +170,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Different artists explored',
 		category: 'music',
 		metric: 'artistsExplored',
-		tiers: [5, 15, 30, 50],
+		tiers: [5, 10, 20, 35, 50, 75, 100, 150, 200, 300],
 		icon: 'headphones'
 	},
 	{
@@ -178,7 +179,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Different music genres explored',
 		category: 'music',
 		metric: 'musicGenresExplored',
-		tiers: [3, 6, 10, 15],
+		tiers: [3, 5, 8, 10, 12, 15, 18, 20, 22, 25],
 		icon: 'compass'
 	},
 	{
@@ -187,7 +188,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Hours of music listened',
 		category: 'music',
 		metric: 'musicHoursListened',
-		tiers: [10, 50, 150, 300],
+		tiers: [10, 25, 50, 100, 250, 500, 1000, 2000, 4000, 8000],
 		icon: 'clock'
 	},
 	{
@@ -196,7 +197,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Days in a row with a listen',
 		category: 'music',
 		metric: 'listenStreakDays',
-		tiers: [3, 7, 14, 30],
+		tiers: [3, 5, 7, 14, 21, 30, 60, 90, 180, 365],
 		icon: 'flame'
 	},
 	{
@@ -205,7 +206,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Tracks played more than once',
 		category: 'music',
 		metric: 'repeatedTracks',
-		tiers: [1, 5, 15, 30],
+		tiers: [1, 3, 5, 10, 20, 35, 50, 75, 100, 150],
 		icon: 'repeat'
 	},
 	{
@@ -214,7 +215,7 @@ export const BADGES: BadgeDef[] = [
 		description: 'Tracks played in a single day',
 		category: 'music',
 		metric: 'bingeDayTracks',
-		tiers: [10, 25, 50, 100],
+		tiers: [10, 20, 35, 50, 75, 100, 150, 200, 300, 500],
 		icon: 'zap'
 	}
 ];
