@@ -1954,6 +1954,56 @@ showed Album Completionist unlocked at Tier 1/10 with a current value
 of 1 — exactly the one complete album, not the incomplete one.
 Typecheck, lint, and build clean.
 
+### Album tracklists
+
+Albums now show a full tracklist on their own detail page — every
+track, not just the ones actually played, with a checkmark on the
+ones the user has. Explicitly asked for after Album Completionist
+shipped, with two design options on the table: fetch live from Plex
+on every page view with nothing stored, or persist a real row for
+every track up front. Chose persistence — a deliberate, narrow
+exception to the "a track only ever exists because it was played"
+rule the rest of the sync layer follows, scoped to exactly one
+album at a time, only when a person actually opens it.
+
+New `getOrFetchAlbumTracklist` (`lib/server/music/tracklist.ts`)
+follows the same lazy-cache shape as `getOrFetchCredits`: if the
+album's `trackCount` is already set and at least that many track rows
+exist, return them with no Plex call at all; otherwise fetch the
+album's children (`getChildren`, hitting
+`/library/metadata/{ratingKey}/children` — new, but a one-line
+addition next to the existing `getMetadata`) and hand each one to the
+_existing_ `upsertMediaItemFromPlex` rather than inserting rows
+directly. That reuse matters: a track that's already been played (and
+has its own watch history) gets updated in place instead of
+duplicated, since Plex's children listing already includes
+`parentRatingKey`/`parentTitle` on every item — the same linkage a
+normal per-track play upsert relies on — so no new code path needed
+for that part either. Added a `trackNumber` column (`track` rows,
+mirroring `episodeNumber` on `episode` rows) from the same `index`
+field the listing already carries, so the tracklist renders in the
+right order.
+
+Read-only for now — no per-track watch-toggle button, no
+lists/rating actions. That wasn't asked for here (the question was
+specifically "should I be able to see the tracklist"), and the
+existing `EpisodeRow` component's full interactive feature set would
+have been a much bigger surface to add to tracks than was in scope. A
+simple track row just shows number, title, duration, and a played
+checkmark (from the same watch-history data already used for
+episodes).
+
+Verified against a mocked Plex `children` response for a 5-track
+album where one track (with its own prior watch history) was already
+in the database before this feature existed — confirmed all 5 tracks
+appeared correctly numbered/ordered, the pre-existing track's row
+wasn't duplicated (still exactly one row for its `plexRatingKey`, with
+its original watch-history row intact) and showed the played
+checkmark, and the album's `trackCount` was set to 5. Loaded the page
+a second time and confirmed no further Plex call/row duplication —
+the `trackCount`-satisfied short-circuit works. Typecheck, lint, and
+build clean.
+
 ## Roadmap
 
 1. ✅ Plex OAuth account linking, single-server library sync (movies + TV),

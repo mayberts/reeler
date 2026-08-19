@@ -185,6 +185,10 @@ export async function upsertMediaItemFromPlex(rawItem: PlexMetadataItem): Promis
 			existing?.seasonNumber ??
 			null,
 		episodeNumber: (type === 'episode' ? item.index : undefined) ?? existing?.episodeNumber ?? null,
+		// A track's `index` is its position within the album — same field, same meaning as
+		// a season's own `index` (used above for seasonNumber), just under a track-specific
+		// column name rather than overloading the show-hierarchy ones.
+		trackNumber: (type === 'track' ? item.index : undefined) ?? existing?.trackNumber ?? null,
 		episodeCount:
 			(type === 'season' ? item.leafCount : undefined) ?? existing?.episodeCount ?? null,
 		// Same `leafCount` field seasons use for their episode count — Plex sets it on

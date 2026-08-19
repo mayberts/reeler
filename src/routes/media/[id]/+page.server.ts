@@ -5,7 +5,19 @@ import { mediaItems, watchHistory, ratings } from '$lib/server/db/schema';
 import { setRating } from '$lib/server/ratings';
 import { addListItem, getVisibleLists } from '$lib/server/lists';
 import { getOrFetchCredits } from '$lib/server/media/credits';
+import { getOrFetchAlbumTracklist } from '$lib/server/music/tracklist';
 import type { Actions, PageServerLoad } from './$types';
+
+/** Bulk lookup of which of a set of media items a user has any watch history for,
+ *  rather than N+1 per-item queries — shared by the episode and track lists. */
+async function watchedIdsAmong(userId: string, itemIds: string[]): Promise<Set<string>> {
+	if (itemIds.length === 0) return new Set();
+	const rows = await db
+		.selectDistinct({ mediaItemId: watchHistory.mediaItemId })
+		.from(watchHistory)
+		.where(and(eq(watchHistory.userId, userId), inArray(watchHistory.mediaItemId, itemIds)));
+	return new Set(rows.map((r) => r.mediaItemId));
+}
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) error(401, 'Not authenticated');
@@ -14,59 +26,58 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const item = await db.query.mediaItems.findFirst({ where: eq(mediaItems.id, params.id) });
 	if (!item) error(404, 'Not found');
 
-	const [[{ watchCount }], lastWatch, rating, visibleLists, parent, seasons, episodes, credits] =
-		await Promise.all([
-			db
-				.select({ watchCount: count() })
-				.from(watchHistory)
-				.where(and(eq(watchHistory.userId, userId), eq(watchHistory.mediaItemId, item.id))),
-			db.query.watchHistory.findFirst({
-				where: and(eq(watchHistory.userId, userId), eq(watchHistory.mediaItemId, item.id)),
-				orderBy: desc(watchHistory.watchedAt)
-			}),
-			db.query.ratings.findFirst({
-				where: and(eq(ratings.userId, userId), eq(ratings.mediaItemId, item.id))
-			}),
-			getVisibleLists(userId),
-			item.parentId
-				? db.query.mediaItems.findFirst({ where: eq(mediaItems.id, item.parentId) })
-				: Promise.resolve(null),
-			item.type === 'show'
-				? db.query.mediaItems.findMany({
-						where: and(eq(mediaItems.parentId, item.id), eq(mediaItems.type, 'season')),
-						orderBy: asc(mediaItems.seasonNumber)
-					})
-				: Promise.resolve([]),
-			item.type === 'season'
-				? db.query.mediaItems.findMany({
-						where: and(eq(mediaItems.parentId, item.id), eq(mediaItems.type, 'episode')),
-						orderBy: asc(mediaItems.episodeNumber)
-					})
-				: Promise.resolve([]),
-			getOrFetchCredits(item)
-		]);
+	const [
+		[{ watchCount }],
+		lastWatch,
+		rating,
+		visibleLists,
+		parent,
+		seasons,
+		episodes,
+		credits,
+		tracklist
+	] = await Promise.all([
+		db
+			.select({ watchCount: count() })
+			.from(watchHistory)
+			.where(and(eq(watchHistory.userId, userId), eq(watchHistory.mediaItemId, item.id))),
+		db.query.watchHistory.findFirst({
+			where: and(eq(watchHistory.userId, userId), eq(watchHistory.mediaItemId, item.id)),
+			orderBy: desc(watchHistory.watchedAt)
+		}),
+		db.query.ratings.findFirst({
+			where: and(eq(ratings.userId, userId), eq(ratings.mediaItemId, item.id))
+		}),
+		getVisibleLists(userId),
+		item.parentId
+			? db.query.mediaItems.findFirst({ where: eq(mediaItems.id, item.parentId) })
+			: Promise.resolve(null),
+		item.type === 'show'
+			? db.query.mediaItems.findMany({
+					where: and(eq(mediaItems.parentId, item.id), eq(mediaItems.type, 'season')),
+					orderBy: asc(mediaItems.seasonNumber)
+				})
+			: Promise.resolve([]),
+		item.type === 'season'
+			? db.query.mediaItems.findMany({
+					where: and(eq(mediaItems.parentId, item.id), eq(mediaItems.type, 'episode')),
+					orderBy: asc(mediaItems.episodeNumber)
+				})
+			: Promise.resolve([]),
+		getOrFetchCredits(item),
+		getOrFetchAlbumTracklist(item)
+	]);
 
-	// One bulk query for which of this season's episodes the user has already watched,
-	// rather than N+1 per-episode lookups.
-	const watchedEpisodeIds =
-		episodes.length > 0
-			? new Set(
-					(
-						await db
-							.selectDistinct({ mediaItemId: watchHistory.mediaItemId })
-							.from(watchHistory)
-							.where(
-								and(
-									eq(watchHistory.userId, userId),
-									inArray(
-										watchHistory.mediaItemId,
-										episodes.map((e) => e.id)
-									)
-								)
-							)
-					).map((row) => row.mediaItemId)
-				)
-			: new Set<string>();
+	const [watchedEpisodeIds, watchedTrackIds] = await Promise.all([
+		watchedIdsAmong(
+			userId,
+			episodes.map((e) => e.id)
+		),
+		watchedIdsAmong(
+			userId,
+			(tracklist ?? []).map((t) => t.id)
+		)
+	]);
 
 	return {
 		item,
@@ -74,6 +85,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		seasons,
 		episodes,
 		watchedEpisodeIds: [...watchedEpisodeIds],
+		tracklist,
+		watchedTrackIds: [...watchedTrackIds],
 		watchCount,
 		lastWatchedAt: lastWatch?.watchedAt ?? null,
 		myRating: rating?.value ?? null,

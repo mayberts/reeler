@@ -83,6 +83,8 @@ export const mediaItems = sqliteTable(
 		/** Set on `season`/`episode` rows — a show's season number, or an episode's within it. */
 		seasonNumber: integer('season_number'),
 		episodeNumber: integer('episode_number'),
+		/** Set on `track` rows — its position within the album, from Plex's `index`. */
+		trackNumber: integer('track_number'),
 		/** Set on `season` rows — Plex's own episode count for that season. */
 		episodeCount: integer('episode_count'),
 		/** Set on `album` rows — Plex's own track count for that album (its `leafCount`,
